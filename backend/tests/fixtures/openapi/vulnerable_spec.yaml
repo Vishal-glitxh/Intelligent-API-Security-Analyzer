@@ -1,0 +1,90 @@
+openapi: 3.0.3
+info:
+  title: Vulnerable API Test Fixture
+  version: 1.0.0
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+        api_key:
+          type: string
+paths:
+  /vulnerable/items:
+    post:
+      summary: Create item without authentication
+      responses:
+        '201':
+          description: Created
+  /vulnerable/records/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Get record
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: OK
+    delete:
+      summary: Delete record without security
+      responses:
+        '204':
+          description: Deleted
+
+  /vulnerable/search:
+    get:
+      summary: Search records with unbounded pagination and redirect
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: redirect_url
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Search results
+  /vulnerable/profile:
+    get:
+      summary: Get profile returning sensitive fields
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+  /vulnerable/accounts/{accountId}:
+    parameters:
+      - name: accountId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Get account with object identifier and coarse token
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Account details
+

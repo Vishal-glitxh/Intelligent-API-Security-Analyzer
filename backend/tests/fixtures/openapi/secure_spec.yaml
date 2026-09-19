@@ -1,0 +1,80 @@
+openapi: 3.0.3
+info:
+  title: Secure API Test Fixture
+  version: 1.0.0
+components:
+  securitySchemes:
+    OAuth2Auth:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.example.com/oauth/authorize
+          tokenUrl: https://auth.example.com/oauth/token
+          scopes:
+            user:self: Access own user data
+            account:self: Access own account
+  schemas:
+    SafeUserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        displayName:
+          type: string
+security:
+  - OAuth2Auth:
+      - user:self
+paths:
+  /secure/items:
+    post:
+      summary: Create item with global security requirement
+      responses:
+        '201':
+          description: Created
+  /secure/records/{recordId}:
+    get:
+      summary: Get record with self scope
+      security:
+        - OAuth2Auth:
+            - account:self
+      responses:
+        '200':
+          description: OK
+    delete:
+      summary: Delete record with self scope
+      security:
+        - OAuth2Auth:
+            - account:self
+      responses:
+        '204':
+          description: Deleted
+  /secure/search:
+    get:
+      summary: Search with bounded constraints
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: redirect_url
+          in: query
+          schema:
+            type: string
+            format: uri
+      responses:
+        '200':
+          description: Results
+  /secure/profile:
+    get:
+      summary: Safe profile with sanitized DTO
+      responses:
+        '200':
+          description: Profile without credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SafeUserProfile'

@@ -1,0 +1,33 @@
+openapi: 3.0.3
+info:
+  title: Ref Resolution Test Fixture
+  version: 1.0.0
+components:
+  schemas:
+    BaseModel:
+      type: object
+      properties:
+        id:
+          type: string
+    ChainedModel:
+      $ref: '#/components/schemas/BaseModel'
+    CircularNode:
+      type: object
+      properties:
+        next:
+          $ref: '#/components/schemas/CircularNode'
+    ExternalRefModel:
+      $ref: 'https://example.com/schemas/external.yaml#/External'
+    MissingRefModel:
+      $ref: '#/components/schemas/NonExistentModel'
+paths:
+  /test/ref:
+    get:
+      summary: Test endpoint for ref resolution
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChainedModel'
