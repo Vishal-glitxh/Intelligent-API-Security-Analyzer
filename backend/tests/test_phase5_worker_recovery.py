@@ -198,7 +198,6 @@ def test_persistence_failure_handling() -> None:
                 source_bytes=b"PK\x05\x06" + b"\x00" * 18,
             )
 
-
             repo = ScanRepository(db)
             scan = repo.get_scan(scan_id)
             assert scan is not None

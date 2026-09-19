@@ -263,7 +263,6 @@ def test_findings_preservation_spec_source_correlated() -> None:
         assert rdata["scan_id"] == str(scan.id)
         assert "metrics_summary" in rdata
 
-
         # 3. Verify via GET /report (JSON)
         json_report_resp = client.get(f"/api/v1/scans/{scan.id}/report?format=json")
         assert json_report_resp.status_code == 200
@@ -271,7 +270,6 @@ def test_findings_preservation_spec_source_correlated() -> None:
         assert len(jreport["spec_only_findings"]) == 1
         assert len(jreport["source_only_findings"]) == 1
         assert len(jreport["correlated_findings"]) == 1
-
 
         # 4. Verify via GET /report (HTML)
         html_report_resp = client.get(f"/api/v1/scans/{scan.id}/report?format=html")
@@ -281,7 +279,6 @@ def test_findings_preservation_spec_source_correlated() -> None:
         assert "Source-Only" in html_text
         assert "Correlated Evidence Findings" in html_text
         assert "CORR-001" in html_text
-
 
     finally:
         db.close()
@@ -293,3 +290,105 @@ def test_get_nonexistent_scan_404() -> None:
     assert client.get(f"/api/v1/scans/{fake_id}/results").status_code == 404
     assert client.get(f"/api/v1/scans/{fake_id}/findings").status_code == 404
     assert client.get(f"/api/v1/scans/{fake_id}/report").status_code == 404
+
+
+def test_scan_creation_invalid_openapi() -> None:
+    """Submit syntactically valid YAML that is not a valid OpenAPI spec."""
+    invalid_spec = b"foo: bar\nbaz: 123\n"
+    zip_bytes = create_sample_zip()
+
+    response = client.post(
+        "/api/v1/scans",
+        files={
+            "openapi_file": ("openapi.yaml", invalid_spec, "application/x-yaml"),
+            "source_archive": ("source.zip", zip_bytes, "application/zip"),
+        },
+        data={"project_name": "Invalid OpenAPI Project"},
+    )
+    assert response.status_code == 202
+    data = response.json()
+    scan_id = data["scan_id"]
+
+    # Verify status endpoint shows FAILED
+    status_resp = client.get(f"/api/v1/scans/{scan_id}")
+    assert status_resp.status_code == 200
+    status_data = status_resp.json()
+    assert status_data["status"] == "failed"
+    assert "OPENAPI_PARSING_ERROR" in status_data["error_message"]
+    assert "Traceback" not in status_data["error_message"]
+    assert "/Users/" not in status_data["error_message"]
+
+    # GET /results and /findings should return 404 for failed scan
+    assert client.get(f"/api/v1/scans/{scan_id}/results").status_code == 404
+    assert client.get(f"/api/v1/scans/{scan_id}/findings").status_code == 404
+
+    # GET /report should return report for failed scan
+    json_report = client.get(f"/api/v1/scans/{scan_id}/report?format=json").json()
+    assert json_report["scan"]["status"] == "FAILED"
+    assert json_report["metrics_summary"] is None
+
+    html_report = client.get(f"/api/v1/scans/{scan_id}/report?format=html").text
+    assert "badge-failed" in html_report
+    assert "OPENAPI_PARSING_ERROR" in html_report
+
+
+def test_scan_creation_invalid_file_extension() -> None:
+    """Submit unsupported file extension."""
+    spec_bytes = SAMPLE_SPEC_YAML.encode("utf-8")
+    zip_bytes = create_sample_zip()
+
+    response = client.post(
+        "/api/v1/scans",
+        files={
+            "openapi_file": ("openapi.txt", spec_bytes, "text/plain"),
+            "source_archive": ("source.zip", zip_bytes, "application/zip"),
+        },
+        data={"project_name": "Invalid Ext Project"},
+    )
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert "UNTRUSTED_ARCHIVE_REJECTED: Invalid spec extension" in detail
+
+
+def test_scan_creation_zip_slip_rejection() -> None:
+    """Submit Zip Slip archive via HTTP API."""
+    spec_bytes = SAMPLE_SPEC_YAML.encode("utf-8")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("../unsafe.txt", "evil")
+    zip_bytes = buf.getvalue()
+
+    response = client.post(
+        "/api/v1/scans",
+        files={
+            "openapi_file": ("openapi.yaml", spec_bytes, "application/x-yaml"),
+            "source_archive": ("source.zip", zip_bytes, "application/zip"),
+        },
+        data={"project_name": "Zip Slip Project"},
+    )
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert "UNTRUSTED_ARCHIVE_REJECTED: Zip Slip attempt detected" in detail
+
+
+def test_scan_creation_symlink_rejection() -> None:
+    """Submit symlink archive via HTTP API."""
+    spec_bytes = SAMPLE_SPEC_YAML.encode("utf-8")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        info = zipfile.ZipInfo("symlink_entry")
+        info.external_attr = 0o120755 << 16
+        zf.writestr(info, "target_file")
+    zip_bytes = buf.getvalue()
+
+    response = client.post(
+        "/api/v1/scans",
+        files={
+            "openapi_file": ("openapi.yaml", spec_bytes, "application/x-yaml"),
+            "source_archive": ("source.zip", zip_bytes, "application/zip"),
+        },
+        data={"project_name": "Symlink Project"},
+    )
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert "UNTRUSTED_ARCHIVE_REJECTED: Symlink detected" in detail
