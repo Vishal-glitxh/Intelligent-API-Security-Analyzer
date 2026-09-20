@@ -1,0 +1,383 @@
+dataset_version: 6.0.0
+total_cases: 24
+cases:
+- case_id: AUTH-001
+  category: authentication
+  description: Protected endpoint with authentication correctly enforced.
+  ground_truth_label: SECURITY_CONDITION_ABSENT
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-AUTH-001
+    category: authentication
+    endpoint: /api/v1/profile
+    method: GET
+    condition: missing_authentication
+    expected: false
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: AUTH-002
+  category: authentication
+  description: Specification requires authentication but corresponding source endpoint
+    lacks authentication evidence.
+  ground_truth_label: SECURITY_CONDITION_PRESENT
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-AUTH-002
+    category: authentication
+    endpoint: /api/v1/admin/users
+    method: GET
+    condition: missing_authentication
+    expected: true
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: AUTH-003
+  category: authentication
+  description: Intentionally public endpoint.
+  ground_truth_label: INTENTIONAL_PUBLIC
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-AUTH-003
+    category: authentication
+    endpoint: /api/v1/health
+    method: GET
+    condition: missing_authentication
+    expected: false
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: AUTH-004
+  category: authentication
+  description: Global authentication with an explicitly public operation.
+  ground_truth_label: INTENTIONAL_PUBLIC
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-AUTH-004
+    category: authentication
+    endpoint: /api/v1/public/ping
+    method: GET
+    condition: missing_authentication
+    expected: false
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: AUTH-005
+  category: authentication
+  description: Authentication enforced through router-level dependency mechanism.
+  ground_truth_label: SECURITY_CONDITION_ABSENT
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-AUTH-005
+    category: authentication
+    endpoint: /api/v1/secure/data
+    method: GET
+    condition: missing_authentication
+    expected: false
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: AUTHZ-001
+  category: authorization
+  description: Object lookup plus object-level authorization evidence.
+  ground_truth_label: SECURITY_CONDITION_ABSENT
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-AUTHZ-001
+    category: authorization
+    endpoint: /api/v1/documents/{doc_id}
+    method: GET
+    condition: missing_object_level_authorization
+    expected: false
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: AUTHZ-002
+  category: authorization
+  description: Object lookup without visible object-level authorization evidence.
+  ground_truth_label: SECURITY_CONDITION_PRESENT
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-AUTHZ-002
+    category: authorization
+    endpoint: /api/v1/accounts/{account_id}
+    method: GET
+    condition: missing_object_level_authorization
+    expected: true
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: AUTHZ-003
+  category: authorization
+  description: Authorization delegated through helper/dependency.
+  ground_truth_label: SECURITY_CONDITION_ABSENT
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-AUTHZ-003
+    category: authorization
+    endpoint: /api/v1/projects/{project_id}
+    method: GET
+    condition: missing_object_level_authorization
+    expected: false
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: AUTHZ-004
+  category: authorization
+  description: Authenticated endpoint but object-level authorization absent.
+  ground_truth_label: SECURITY_CONDITION_PRESENT
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-AUTHZ-004
+    category: authorization
+    endpoint: /api/v1/orders/{order_id}
+    method: GET
+    condition: missing_object_level_authorization
+    expected: true
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: AUTHZ-005
+  category: authorization
+  description: Bearer authentication exists but no object-level authorization evidence.
+  ground_truth_label: SECURITY_CONDITION_PRESENT
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-AUTHZ-005
+    category: authorization
+    endpoint: /api/v1/reports/{report_id}
+    method: GET
+    condition: missing_object_level_authorization
+    expected: true
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: INPUT-001
+  category: input_validation
+  description: Strong request validation.
+  ground_truth_label: SECURITY_CONDITION_ABSENT
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-INPUT-001
+    category: input_validation
+    endpoint: /api/v1/users
+    method: POST
+    condition: unconstrained_input
+    expected: false
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: INPUT-002
+  category: input_validation
+  description: Security-relevant input is insufficiently constrained.
+  ground_truth_label: SECURITY_CONDITION_PRESENT
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-INPUT-002
+    category: input_validation
+    endpoint: /api/v1/search
+    method: POST
+    condition: unconstrained_input
+    expected: true
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: INPUT-003
+  category: input_validation
+  description: Partial validation.
+  ground_truth_label: SECURITY_CONDITION_PRESENT
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-INPUT-003
+    category: input_validation
+    endpoint: /api/v1/register
+    method: POST
+    condition: unconstrained_input
+    expected: true
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: INPUT-004
+  category: input_validation
+  description: Validation implemented through dependency/helper.
+  ground_truth_label: SECURITY_CONDITION_ABSENT
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-INPUT-004
+    category: input_validation
+    endpoint: /api/v1/comments
+    method: POST
+    condition: unconstrained_input
+    expected: false
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: DATA-001
+  category: sensitive_data
+  description: Normal non-sensitive response.
+  ground_truth_label: SECURITY_CONDITION_ABSENT
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-DATA-001
+    category: sensitive_data
+    endpoint: /api/v1/products
+    method: GET
+    condition: sensitive_data_exposure
+    expected: false
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: DATA-002
+  category: sensitive_data
+  description: Clearly sensitive response field exposed.
+  ground_truth_label: SECURITY_CONDITION_PRESENT
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-DATA-002
+    category: sensitive_data
+    endpoint: /api/v1/users/{id}
+    method: GET
+    condition: sensitive_data_exposure
+    expected: true
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: DATA-003
+  category: sensitive_data
+  description: Sensitive-looking field with intentionally documented/public exposure.
+  ground_truth_label: INTENTIONAL_PUBLIC
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-DATA-003
+    category: sensitive_data
+    endpoint: /api/v1/public_key
+    method: GET
+    condition: sensitive_data_exposure
+    expected: false
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: DATA-004
+  category: sensitive_data
+  description: False-positive-prone field name that is not actually sensitive.
+  ground_truth_label: SECURITY_CONDITION_ABSENT
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-DATA-004
+    category: sensitive_data
+    endpoint: /api/v1/items
+    method: GET
+    condition: sensitive_data_exposure
+    expected: false
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: SECRET-001
+  category: secrets
+  description: Actual hardcoded credential/token (controlled fake AWS key).
+  ground_truth_label: SECURITY_CONDITION_PRESENT
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-SECRET-001
+    category: secrets
+    endpoint: N/A
+    method: N/A
+    condition: hardcoded_secret
+    expected: true
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: SECRET-002
+  category: secrets
+  description: Secret loaded from environment/configuration.
+  ground_truth_label: SECURITY_CONDITION_ABSENT
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-SECRET-002
+    category: secrets
+    endpoint: N/A
+    method: N/A
+    condition: hardcoded_secret
+    expected: false
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: SECRET-003
+  category: secrets
+  description: Placeholder/example secret string.
+  ground_truth_label: SECURITY_CONDITION_ABSENT
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-SECRET-003
+    category: secrets
+    endpoint: N/A
+    method: N/A
+    condition: hardcoded_secret
+    expected: false
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: SECRET-004
+  category: secrets
+  description: Test fixture value.
+  ground_truth_label: SECURITY_CONDITION_ABSENT
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions:
+  - proposition_id: PROP-SECRET-004
+    category: secrets
+    endpoint: N/A
+    method: N/A
+    condition: hardcoded_secret
+    expected: false
+  expected_endpoint_pairs: []
+  expected_correlations: []
+- case_id: CORR-001
+  category: cross_layer_correlation
+  description: Specification/source security contradiction (Spec requires bearer auth,
+    source lacks auth decorator).
+  ground_truth_label: CROSS_LAYER_CONTRADICTION
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions: []
+  expected_endpoint_pairs: []
+  expected_correlations:
+  - target_id: CORR-TARGET-001
+    category: authentication
+    endpoint: /api/v1/admin/audit
+    method: GET
+    expected_state: CONTRADICTED
+- case_id: MATCH-001
+  category: endpoint_matching
+  description: Multi-pair endpoint relationship benchmark exercising matching tiers.
+  ground_truth_label: ENDPOINT_MATCH
+  dataset_version: 6.0.0
+  evaluation_role: FINAL
+  propositions: []
+  expected_endpoint_pairs:
+  - pair_id: M1
+    spec_path: /api/v1/health
+    spec_method: GET
+    source_path: /api/v1/health
+    source_method: GET
+    expected_match_state: EXACT_MATCH
+  - pair_id: M2
+    spec_path: /users/{id}
+    spec_method: GET
+    source_path: /users/{user_id}
+    source_method: GET
+    expected_match_state: PARAMETER_NORMALIZED_MATCH
+  - pair_id: M3
+    spec_path: /items/search
+    spec_method: POST
+    source_path: null
+    source_method: null
+    expected_match_state: NO_MATCH
+  - pair_id: M4
+    spec_path: /v1/ambiguous/{id}
+    spec_method: GET
+    source_path: null
+    source_method: null
+    expected_match_state: AMBIGUOUS_MATCH
+  expected_correlations: []
+

@@ -1,0 +1,16 @@
+case_id: AUTH-002
+category: authentication
+description: Specification requires authentication but corresponding source endpoint
+  lacks authentication evidence.
+ground_truth_label: SECURITY_CONDITION_PRESENT
+dataset_version: 6.0.0
+evaluation_role: FINAL
+propositions:
+- proposition_id: PROP-AUTH-002
+  category: authentication
+  endpoint: /api/v1/admin/users
+  method: GET
+  condition: missing_authentication
+  expected: true
+expected_endpoint_pairs: []
+expected_correlations: []

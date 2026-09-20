@@ -1,0 +1,15 @@
+case_id: CORR-001
+category: cross_layer_correlation
+description: Specification/source security contradiction (Spec requires bearer auth,
+  source lacks auth decorator).
+ground_truth_label: CROSS_LAYER_CONTRADICTION
+dataset_version: 6.0.0
+evaluation_role: FINAL
+propositions: []
+expected_endpoint_pairs: []
+expected_correlations:
+- target_id: CORR-TARGET-001
+  category: authentication
+  endpoint: /api/v1/admin/audit
+  method: GET
+  expected_state: CONTRADICTED

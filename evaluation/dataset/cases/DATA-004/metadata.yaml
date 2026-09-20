@@ -1,0 +1,15 @@
+case_id: DATA-004
+category: sensitive_data
+description: False-positive-prone field name that is not actually sensitive.
+ground_truth_label: SECURITY_CONDITION_ABSENT
+dataset_version: 6.0.0
+evaluation_role: FINAL
+propositions:
+- proposition_id: PROP-DATA-004
+  category: sensitive_data
+  endpoint: /api/v1/items
+  method: GET
+  condition: sensitive_data_exposure
+  expected: false
+expected_endpoint_pairs: []
+expected_correlations: []

@@ -1,0 +1,32 @@
+openapi: 3.0.3
+info:
+  title: "MATCH-001 API"
+  version: "1.0.0"
+
+paths:
+  /api/v1/health:
+    get:
+      summary: Exact match endpoint
+      responses:
+        '200':
+          description: OK
+  /users/{id}:
+    get:
+      summary: Parameter normalized endpoint
+      responses:
+        '200':
+          description: OK
+  /items/search:
+    post:
+      summary: Unmatched spec endpoint
+      responses:
+        '200':
+          description: OK
+  /v1/ambiguous/{id}:
+    get:
+      summary: Ambiguous endpoint relationship
+      responses:
+        '200':
+          description: OK
+
+

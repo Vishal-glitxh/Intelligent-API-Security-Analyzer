@@ -1,0 +1,26 @@
+openapi: 3.0.3
+info:
+  title: "AUTHZ-005 API"
+  version: "1.0.0"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+paths:
+  /api/v1/reports/{report_id}:
+    get:
+      summary: Get Report
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: report_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+

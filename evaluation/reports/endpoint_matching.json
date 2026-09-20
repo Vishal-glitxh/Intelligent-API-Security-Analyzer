@@ -1,0 +1,48 @@
+{
+  "experiment_id": "4eb72e4c-2ba5-47c8-ad1b-9d992b709f61",
+  "score": {
+    "correct_count": 4,
+    "total_count": 4,
+    "accuracy": 1.0,
+    "confusion_matrix": {
+      "EXACT_MATCH->EXACT_MATCH": 1,
+      "PARAMETER_NORMALIZED_MATCH->PARAMETER_NORMALIZED_MATCH": 1,
+      "NO_MATCH->NO_MATCH": 1,
+      "AMBIGUOUS_MATCH->AMBIGUOUS_MATCH": 1
+    }
+  },
+  "details": [
+    {
+      "pair_id": "M1",
+      "spec_path": "/api/v1/health",
+      "spec_method": "GET",
+      "expected_match_state": "EXACT_MATCH",
+      "actual_match_state": "EXACT_MATCH",
+      "is_correct": true
+    },
+    {
+      "pair_id": "M2",
+      "spec_path": "/users/{id}",
+      "spec_method": "GET",
+      "expected_match_state": "PARAMETER_NORMALIZED_MATCH",
+      "actual_match_state": "PARAMETER_NORMALIZED_MATCH",
+      "is_correct": true
+    },
+    {
+      "pair_id": "M3",
+      "spec_path": "/items/search",
+      "spec_method": "POST",
+      "expected_match_state": "NO_MATCH",
+      "actual_match_state": "NO_MATCH",
+      "is_correct": true
+    },
+    {
+      "pair_id": "M4",
+      "spec_path": "/v1/ambiguous/{id}",
+      "spec_method": "GET",
+      "expected_match_state": "AMBIGUOUS_MATCH",
+      "actual_match_state": "AMBIGUOUS_MATCH",
+      "is_correct": true
+    }
+  ]
+}

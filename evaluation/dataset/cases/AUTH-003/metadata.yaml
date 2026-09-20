@@ -1,0 +1,15 @@
+case_id: AUTH-003
+category: authentication
+description: Intentionally public endpoint.
+ground_truth_label: INTENTIONAL_PUBLIC
+dataset_version: 6.0.0
+evaluation_role: FINAL
+propositions:
+- proposition_id: PROP-AUTH-003
+  category: authentication
+  endpoint: /api/v1/health
+  method: GET
+  condition: missing_authentication
+  expected: false
+expected_endpoint_pairs: []
+expected_correlations: []

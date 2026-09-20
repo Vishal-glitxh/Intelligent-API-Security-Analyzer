@@ -1,0 +1,15 @@
+case_id: AUTHZ-004
+category: authorization
+description: Authenticated endpoint but object-level authorization absent.
+ground_truth_label: SECURITY_CONDITION_PRESENT
+dataset_version: 6.0.0
+evaluation_role: FINAL
+propositions:
+- proposition_id: PROP-AUTHZ-004
+  category: authorization
+  endpoint: /api/v1/orders/{order_id}
+  method: GET
+  condition: missing_object_level_authorization
+  expected: true
+expected_endpoint_pairs: []
+expected_correlations: []

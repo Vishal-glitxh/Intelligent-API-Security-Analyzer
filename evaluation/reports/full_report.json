@@ -1,0 +1,1246 @@
+{
+  "experiment_id": "4eb72e4c-2ba5-47c8-ad1b-9d992b709f61",
+  "dataset_version": "6.0.0",
+  "analyzer_version": "0.1.0",
+  "rule_set_version": "0.1.0",
+  "config_version": "1.0.0",
+  "python_version": "3.14.6",
+  "platform_info": "Darwin 27.0.0 (arm64)",
+  "execution_timestamp": "2026-09-20T04:15:55Z",
+  "mode_results": {
+    "SPEC_ONLY": {
+      "mode": "SPEC_ONLY",
+      "dimension_a": {
+        "overall_metrics": {
+          "tp": 4,
+          "fp": 4,
+          "fn": 4,
+          "tn": 10,
+          "precision": 0.5,
+          "recall": 0.5,
+          "f1": 0.5,
+          "fpr": 0.2857142857142857,
+          "fnr": 0.5,
+          "undefined_reasons": {}
+        },
+        "category_metrics": {
+          "authentication": {
+            "tp": 0,
+            "fp": 2,
+            "fn": 1,
+            "tn": 2,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": null,
+            "fpr": 0.5,
+            "fnr": 1.0,
+            "undefined_reasons": {
+              "f1": "Precision and/or Recall undefined or sum to zero"
+            }
+          },
+          "authorization": {
+            "tp": 3,
+            "fp": 2,
+            "fn": 0,
+            "tn": 0,
+            "precision": 0.6,
+            "recall": 1.0,
+            "f1": 0.7499999999999999,
+            "fpr": 1.0,
+            "fnr": 0.0,
+            "undefined_reasons": {}
+          },
+          "input_validation": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "tn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": null,
+            "fpr": 0.0,
+            "fnr": 1.0,
+            "undefined_reasons": {
+              "precision": "Zero positive predictions (TP + FP == 0)",
+              "f1": "Precision and/or Recall undefined or sum to zero"
+            }
+          },
+          "sensitive_data": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "tn": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "fpr": 0.0,
+            "fnr": 0.0,
+            "undefined_reasons": {}
+          },
+          "secrets": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "tn": 3,
+            "precision": null,
+            "recall": 0.0,
+            "f1": null,
+            "fpr": 0.0,
+            "fnr": 1.0,
+            "undefined_reasons": {
+              "precision": "Zero positive predictions (TP + FP == 0)",
+              "f1": "Precision and/or Recall undefined or sum to zero"
+            }
+          }
+        },
+        "classifications": [
+          {
+            "proposition_id": "PROP-AUTH-001",
+            "case_id": "AUTH-001",
+            "category": "authentication",
+            "endpoint": "/api/v1/profile",
+            "method": "GET",
+            "condition": "missing_authentication",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/profile'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-AUTH-002",
+            "case_id": "AUTH-002",
+            "category": "authentication",
+            "endpoint": "/api/v1/admin/users",
+            "method": "GET",
+            "condition": "missing_authentication",
+            "expected": true,
+            "outcome": "FN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected present for '/api/v1/admin/users'; no matching finding detected."
+          },
+          {
+            "proposition_id": "PROP-AUTH-003",
+            "case_id": "AUTH-003",
+            "category": "authentication",
+            "endpoint": "/api/v1/health",
+            "method": "GET",
+            "condition": "missing_authentication",
+            "expected": false,
+            "outcome": "FP",
+            "finding_rule_id": "API-AUTH-001",
+            "rationale": "Security condition expected absent/safe for '/api/v1/health'; finding 'API-AUTH-001' reported."
+          },
+          {
+            "proposition_id": "PROP-AUTH-004",
+            "case_id": "AUTH-004",
+            "category": "authentication",
+            "endpoint": "/api/v1/public/ping",
+            "method": "GET",
+            "condition": "missing_authentication",
+            "expected": false,
+            "outcome": "FP",
+            "finding_rule_id": "API-AUTH-001",
+            "rationale": "Security condition expected absent/safe for '/api/v1/public/ping'; finding 'API-AUTH-001' reported."
+          },
+          {
+            "proposition_id": "PROP-AUTH-005",
+            "case_id": "AUTH-005",
+            "category": "authentication",
+            "endpoint": "/api/v1/secure/data",
+            "method": "GET",
+            "condition": "missing_authentication",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/secure/data'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-AUTHZ-001",
+            "case_id": "AUTHZ-001",
+            "category": "authorization",
+            "endpoint": "/api/v1/documents/{doc_id}",
+            "method": "GET",
+            "condition": "missing_object_level_authorization",
+            "expected": false,
+            "outcome": "FP",
+            "finding_rule_id": "API-AUTHZ-001",
+            "rationale": "Security condition expected absent/safe for '/api/v1/documents/{doc_id}'; finding 'API-AUTHZ-001' reported."
+          },
+          {
+            "proposition_id": "PROP-AUTHZ-002",
+            "case_id": "AUTHZ-002",
+            "category": "authorization",
+            "endpoint": "/api/v1/accounts/{account_id}",
+            "method": "GET",
+            "condition": "missing_object_level_authorization",
+            "expected": true,
+            "outcome": "TP",
+            "finding_rule_id": "API-AUTHZ-001",
+            "rationale": "Security condition expected present for '/api/v1/accounts/{account_id}'; matching finding 'API-AUTHZ-001' detected."
+          },
+          {
+            "proposition_id": "PROP-AUTHZ-003",
+            "case_id": "AUTHZ-003",
+            "category": "authorization",
+            "endpoint": "/api/v1/projects/{project_id}",
+            "method": "GET",
+            "condition": "missing_object_level_authorization",
+            "expected": false,
+            "outcome": "FP",
+            "finding_rule_id": "API-AUTHZ-001",
+            "rationale": "Security condition expected absent/safe for '/api/v1/projects/{project_id}'; finding 'API-AUTHZ-001' reported."
+          },
+          {
+            "proposition_id": "PROP-AUTHZ-004",
+            "case_id": "AUTHZ-004",
+            "category": "authorization",
+            "endpoint": "/api/v1/orders/{order_id}",
+            "method": "GET",
+            "condition": "missing_object_level_authorization",
+            "expected": true,
+            "outcome": "TP",
+            "finding_rule_id": "API-AUTHZ-001",
+            "rationale": "Security condition expected present for '/api/v1/orders/{order_id}'; matching finding 'API-AUTHZ-001' detected."
+          },
+          {
+            "proposition_id": "PROP-AUTHZ-005",
+            "case_id": "AUTHZ-005",
+            "category": "authorization",
+            "endpoint": "/api/v1/reports/{report_id}",
+            "method": "GET",
+            "condition": "missing_object_level_authorization",
+            "expected": true,
+            "outcome": "TP",
+            "finding_rule_id": "API-AUTHZ-001",
+            "rationale": "Security condition expected present for '/api/v1/reports/{report_id}'; matching finding 'API-AUTHZ-001' detected."
+          },
+          {
+            "proposition_id": "PROP-INPUT-001",
+            "case_id": "INPUT-001",
+            "category": "input_validation",
+            "endpoint": "/api/v1/users",
+            "method": "POST",
+            "condition": "unconstrained_input",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/users'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-INPUT-002",
+            "case_id": "INPUT-002",
+            "category": "input_validation",
+            "endpoint": "/api/v1/search",
+            "method": "POST",
+            "condition": "unconstrained_input",
+            "expected": true,
+            "outcome": "FN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected present for '/api/v1/search'; no matching finding detected."
+          },
+          {
+            "proposition_id": "PROP-INPUT-003",
+            "case_id": "INPUT-003",
+            "category": "input_validation",
+            "endpoint": "/api/v1/register",
+            "method": "POST",
+            "condition": "unconstrained_input",
+            "expected": true,
+            "outcome": "FN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected present for '/api/v1/register'; no matching finding detected."
+          },
+          {
+            "proposition_id": "PROP-INPUT-004",
+            "case_id": "INPUT-004",
+            "category": "input_validation",
+            "endpoint": "/api/v1/comments",
+            "method": "POST",
+            "condition": "unconstrained_input",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/comments'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-DATA-001",
+            "case_id": "DATA-001",
+            "category": "sensitive_data",
+            "endpoint": "/api/v1/products",
+            "method": "GET",
+            "condition": "sensitive_data_exposure",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/products'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-DATA-002",
+            "case_id": "DATA-002",
+            "category": "sensitive_data",
+            "endpoint": "/api/v1/users/{id}",
+            "method": "GET",
+            "condition": "sensitive_data_exposure",
+            "expected": true,
+            "outcome": "TP",
+            "finding_rule_id": "API-DATA-001",
+            "rationale": "Security condition expected present for '/api/v1/users/{id}'; matching finding 'API-DATA-001' detected."
+          },
+          {
+            "proposition_id": "PROP-DATA-003",
+            "case_id": "DATA-003",
+            "category": "sensitive_data",
+            "endpoint": "/api/v1/public_key",
+            "method": "GET",
+            "condition": "sensitive_data_exposure",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/public_key'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-DATA-004",
+            "case_id": "DATA-004",
+            "category": "sensitive_data",
+            "endpoint": "/api/v1/items",
+            "method": "GET",
+            "condition": "sensitive_data_exposure",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/items'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-SECRET-001",
+            "case_id": "SECRET-001",
+            "category": "secrets",
+            "endpoint": "N/A",
+            "method": "N/A",
+            "condition": "hardcoded_secret",
+            "expected": true,
+            "outcome": "FN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected present for 'N/A'; no matching finding detected."
+          },
+          {
+            "proposition_id": "PROP-SECRET-002",
+            "case_id": "SECRET-002",
+            "category": "secrets",
+            "endpoint": "N/A",
+            "method": "N/A",
+            "condition": "hardcoded_secret",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for 'N/A'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-SECRET-003",
+            "case_id": "SECRET-003",
+            "category": "secrets",
+            "endpoint": "N/A",
+            "method": "N/A",
+            "condition": "hardcoded_secret",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for 'N/A'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-SECRET-004",
+            "case_id": "SECRET-004",
+            "category": "secrets",
+            "endpoint": "N/A",
+            "method": "N/A",
+            "condition": "hardcoded_secret",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for 'N/A'; no finding reported."
+          }
+        ]
+      },
+      "dimension_b": {
+        "score": {
+          "correct_count": 0,
+          "total_count": 0,
+          "accuracy": 1.0,
+          "state_breakdown": {}
+        },
+        "details": []
+      },
+      "dimension_c": {
+        "score": {
+          "correct_count": 0,
+          "total_count": 0,
+          "accuracy": 1.0,
+          "confusion_matrix": {}
+        },
+        "details": []
+      },
+      "evidence_completeness": {
+        "mode": "SPEC_ONLY",
+        "present_count": 90,
+        "missing_count": 0,
+        "not_applicable_count": 60,
+        "score": 1.0,
+        "detail": {
+          "present": "90",
+          "missing": "0",
+          "not_applicable": "60"
+        }
+      },
+      "explainability": {
+        "mode": "SPEC_ONLY",
+        "score": 1.0,
+        "criteria_breakdown": {
+          "affected_endpoint": "PRESENT",
+          "security_condition": "PRESENT",
+          "rule_identifier": "PRESENT",
+          "evidence_detail": "PRESENT",
+          "provenance_file_line": "NOT_APPLICABLE",
+          "rationale": "PRESENT",
+          "correlation_relationship": "NOT_APPLICABLE"
+        }
+      }
+    },
+    "SOURCE_ONLY": {
+      "mode": "SOURCE_ONLY",
+      "dimension_a": {
+        "overall_metrics": {
+          "tp": 5,
+          "fp": 4,
+          "fn": 3,
+          "tn": 10,
+          "precision": 0.5555555555555556,
+          "recall": 0.625,
+          "f1": 0.5882352941176471,
+          "fpr": 0.2857142857142857,
+          "fnr": 0.375,
+          "undefined_reasons": {}
+        },
+        "category_metrics": {
+          "authentication": {
+            "tp": 1,
+            "fp": 2,
+            "fn": 0,
+            "tn": 2,
+            "precision": 0.3333333333333333,
+            "recall": 1.0,
+            "f1": 0.5,
+            "fpr": 0.5,
+            "fnr": 0.0,
+            "undefined_reasons": {}
+          },
+          "authorization": {
+            "tp": 3,
+            "fp": 1,
+            "fn": 0,
+            "tn": 1,
+            "precision": 0.75,
+            "recall": 1.0,
+            "f1": 0.8571428571428571,
+            "fpr": 0.5,
+            "fnr": 0.0,
+            "undefined_reasons": {}
+          },
+          "input_validation": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "tn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": null,
+            "fpr": 0.0,
+            "fnr": 1.0,
+            "undefined_reasons": {
+              "precision": "Zero positive predictions (TP + FP == 0)",
+              "f1": "Precision and/or Recall undefined or sum to zero"
+            }
+          },
+          "sensitive_data": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "tn": 3,
+            "precision": null,
+            "recall": 0.0,
+            "f1": null,
+            "fpr": 0.0,
+            "fnr": 1.0,
+            "undefined_reasons": {
+              "precision": "Zero positive predictions (TP + FP == 0)",
+              "f1": "Precision and/or Recall undefined or sum to zero"
+            }
+          },
+          "secrets": {
+            "tp": 1,
+            "fp": 1,
+            "fn": 0,
+            "tn": 2,
+            "precision": 0.5,
+            "recall": 1.0,
+            "f1": 0.6666666666666666,
+            "fpr": 0.3333333333333333,
+            "fnr": 0.0,
+            "undefined_reasons": {}
+          }
+        },
+        "classifications": [
+          {
+            "proposition_id": "PROP-AUTH-001",
+            "case_id": "AUTH-001",
+            "category": "authentication",
+            "endpoint": "/api/v1/profile",
+            "method": "GET",
+            "condition": "missing_authentication",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/profile'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-AUTH-002",
+            "case_id": "AUTH-002",
+            "category": "authentication",
+            "endpoint": "/api/v1/admin/users",
+            "method": "GET",
+            "condition": "missing_authentication",
+            "expected": true,
+            "outcome": "TP",
+            "finding_rule_id": "API-SOURCE-AUTH-001",
+            "rationale": "Security condition expected present for '/api/v1/admin/users'; matching finding 'API-SOURCE-AUTH-001' detected."
+          },
+          {
+            "proposition_id": "PROP-AUTH-003",
+            "case_id": "AUTH-003",
+            "category": "authentication",
+            "endpoint": "/api/v1/health",
+            "method": "GET",
+            "condition": "missing_authentication",
+            "expected": false,
+            "outcome": "FP",
+            "finding_rule_id": "API-SOURCE-AUTH-001",
+            "rationale": "Security condition expected absent/safe for '/api/v1/health'; finding 'API-SOURCE-AUTH-001' reported."
+          },
+          {
+            "proposition_id": "PROP-AUTH-004",
+            "case_id": "AUTH-004",
+            "category": "authentication",
+            "endpoint": "/api/v1/public/ping",
+            "method": "GET",
+            "condition": "missing_authentication",
+            "expected": false,
+            "outcome": "FP",
+            "finding_rule_id": "API-SOURCE-AUTH-001",
+            "rationale": "Security condition expected absent/safe for '/api/v1/public/ping'; finding 'API-SOURCE-AUTH-001' reported."
+          },
+          {
+            "proposition_id": "PROP-AUTH-005",
+            "case_id": "AUTH-005",
+            "category": "authentication",
+            "endpoint": "/api/v1/secure/data",
+            "method": "GET",
+            "condition": "missing_authentication",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/secure/data'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-AUTHZ-001",
+            "case_id": "AUTHZ-001",
+            "category": "authorization",
+            "endpoint": "/api/v1/documents/{doc_id}",
+            "method": "GET",
+            "condition": "missing_object_level_authorization",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/documents/{doc_id}'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-AUTHZ-002",
+            "case_id": "AUTHZ-002",
+            "category": "authorization",
+            "endpoint": "/api/v1/accounts/{account_id}",
+            "method": "GET",
+            "condition": "missing_object_level_authorization",
+            "expected": true,
+            "outcome": "TP",
+            "finding_rule_id": "API-SOURCE-AUTHZ-001",
+            "rationale": "Security condition expected present for '/api/v1/accounts/{account_id}'; matching finding 'API-SOURCE-AUTHZ-001' detected."
+          },
+          {
+            "proposition_id": "PROP-AUTHZ-003",
+            "case_id": "AUTHZ-003",
+            "category": "authorization",
+            "endpoint": "/api/v1/projects/{project_id}",
+            "method": "GET",
+            "condition": "missing_object_level_authorization",
+            "expected": false,
+            "outcome": "FP",
+            "finding_rule_id": "API-SOURCE-AUTHZ-001",
+            "rationale": "Security condition expected absent/safe for '/api/v1/projects/{project_id}'; finding 'API-SOURCE-AUTHZ-001' reported."
+          },
+          {
+            "proposition_id": "PROP-AUTHZ-004",
+            "case_id": "AUTHZ-004",
+            "category": "authorization",
+            "endpoint": "/api/v1/orders/{order_id}",
+            "method": "GET",
+            "condition": "missing_object_level_authorization",
+            "expected": true,
+            "outcome": "TP",
+            "finding_rule_id": "API-SOURCE-AUTHZ-001",
+            "rationale": "Security condition expected present for '/api/v1/orders/{order_id}'; matching finding 'API-SOURCE-AUTHZ-001' detected."
+          },
+          {
+            "proposition_id": "PROP-AUTHZ-005",
+            "case_id": "AUTHZ-005",
+            "category": "authorization",
+            "endpoint": "/api/v1/reports/{report_id}",
+            "method": "GET",
+            "condition": "missing_object_level_authorization",
+            "expected": true,
+            "outcome": "TP",
+            "finding_rule_id": "API-SOURCE-AUTHZ-001",
+            "rationale": "Security condition expected present for '/api/v1/reports/{report_id}'; matching finding 'API-SOURCE-AUTHZ-001' detected."
+          },
+          {
+            "proposition_id": "PROP-INPUT-001",
+            "case_id": "INPUT-001",
+            "category": "input_validation",
+            "endpoint": "/api/v1/users",
+            "method": "POST",
+            "condition": "unconstrained_input",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/users'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-INPUT-002",
+            "case_id": "INPUT-002",
+            "category": "input_validation",
+            "endpoint": "/api/v1/search",
+            "method": "POST",
+            "condition": "unconstrained_input",
+            "expected": true,
+            "outcome": "FN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected present for '/api/v1/search'; no matching finding detected."
+          },
+          {
+            "proposition_id": "PROP-INPUT-003",
+            "case_id": "INPUT-003",
+            "category": "input_validation",
+            "endpoint": "/api/v1/register",
+            "method": "POST",
+            "condition": "unconstrained_input",
+            "expected": true,
+            "outcome": "FN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected present for '/api/v1/register'; no matching finding detected."
+          },
+          {
+            "proposition_id": "PROP-INPUT-004",
+            "case_id": "INPUT-004",
+            "category": "input_validation",
+            "endpoint": "/api/v1/comments",
+            "method": "POST",
+            "condition": "unconstrained_input",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/comments'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-DATA-001",
+            "case_id": "DATA-001",
+            "category": "sensitive_data",
+            "endpoint": "/api/v1/products",
+            "method": "GET",
+            "condition": "sensitive_data_exposure",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/products'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-DATA-002",
+            "case_id": "DATA-002",
+            "category": "sensitive_data",
+            "endpoint": "/api/v1/users/{id}",
+            "method": "GET",
+            "condition": "sensitive_data_exposure",
+            "expected": true,
+            "outcome": "FN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected present for '/api/v1/users/{id}'; no matching finding detected."
+          },
+          {
+            "proposition_id": "PROP-DATA-003",
+            "case_id": "DATA-003",
+            "category": "sensitive_data",
+            "endpoint": "/api/v1/public_key",
+            "method": "GET",
+            "condition": "sensitive_data_exposure",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/public_key'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-DATA-004",
+            "case_id": "DATA-004",
+            "category": "sensitive_data",
+            "endpoint": "/api/v1/items",
+            "method": "GET",
+            "condition": "sensitive_data_exposure",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/items'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-SECRET-001",
+            "case_id": "SECRET-001",
+            "category": "secrets",
+            "endpoint": "N/A",
+            "method": "N/A",
+            "condition": "hardcoded_secret",
+            "expected": true,
+            "outcome": "TP",
+            "finding_rule_id": "API-SECRET-001",
+            "rationale": "Security condition expected present for 'N/A'; matching finding 'API-SECRET-001' detected."
+          },
+          {
+            "proposition_id": "PROP-SECRET-002",
+            "case_id": "SECRET-002",
+            "category": "secrets",
+            "endpoint": "N/A",
+            "method": "N/A",
+            "condition": "hardcoded_secret",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for 'N/A'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-SECRET-003",
+            "case_id": "SECRET-003",
+            "category": "secrets",
+            "endpoint": "N/A",
+            "method": "N/A",
+            "condition": "hardcoded_secret",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for 'N/A'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-SECRET-004",
+            "case_id": "SECRET-004",
+            "category": "secrets",
+            "endpoint": "N/A",
+            "method": "N/A",
+            "condition": "hardcoded_secret",
+            "expected": false,
+            "outcome": "FP",
+            "finding_rule_id": "API-SECRET-001",
+            "rationale": "Security condition expected absent/safe for 'N/A'; finding 'API-SECRET-001' reported."
+          }
+        ]
+      },
+      "dimension_b": {
+        "score": {
+          "correct_count": 0,
+          "total_count": 0,
+          "accuracy": 1.0,
+          "state_breakdown": {}
+        },
+        "details": []
+      },
+      "dimension_c": {
+        "score": {
+          "correct_count": 0,
+          "total_count": 0,
+          "accuracy": 1.0,
+          "confusion_matrix": {}
+        },
+        "details": []
+      },
+      "evidence_completeness": {
+        "mode": "SOURCE_ONLY",
+        "present_count": 116,
+        "missing_count": 0,
+        "not_applicable_count": 29,
+        "score": 1.0,
+        "detail": {
+          "present": "116",
+          "missing": "0",
+          "not_applicable": "29"
+        }
+      },
+      "explainability": {
+        "mode": "SOURCE_ONLY",
+        "score": 0.9885057471264368,
+        "criteria_breakdown": {
+          "affected_endpoint": "PRESENT",
+          "security_condition": "PRESENT",
+          "rule_identifier": "PRESENT",
+          "evidence_detail": "PRESENT",
+          "provenance_file_line": "PRESENT",
+          "rationale": "PRESENT",
+          "correlation_relationship": "NOT_APPLICABLE"
+        }
+      }
+    },
+    "CORRELATED": {
+      "mode": "CORRELATED",
+      "dimension_a": {
+        "overall_metrics": {
+          "tp": 5,
+          "fp": 1,
+          "fn": 3,
+          "tn": 13,
+          "precision": 0.8333333333333334,
+          "recall": 0.625,
+          "f1": 0.7142857142857143,
+          "fpr": 0.07142857142857142,
+          "fnr": 0.375,
+          "undefined_reasons": {}
+        },
+        "category_metrics": {
+          "authentication": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "tn": 4,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "fpr": 0.0,
+            "fnr": 0.0,
+            "undefined_reasons": {}
+          },
+          "authorization": {
+            "tp": 3,
+            "fp": 1,
+            "fn": 0,
+            "tn": 1,
+            "precision": 0.75,
+            "recall": 1.0,
+            "f1": 0.8571428571428571,
+            "fpr": 0.5,
+            "fnr": 0.0,
+            "undefined_reasons": {}
+          },
+          "input_validation": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 2,
+            "tn": 2,
+            "precision": null,
+            "recall": 0.0,
+            "f1": null,
+            "fpr": 0.0,
+            "fnr": 1.0,
+            "undefined_reasons": {
+              "precision": "Zero positive predictions (TP + FP == 0)",
+              "f1": "Precision and/or Recall undefined or sum to zero"
+            }
+          },
+          "sensitive_data": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "tn": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "fpr": 0.0,
+            "fnr": 0.0,
+            "undefined_reasons": {}
+          },
+          "secrets": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 1,
+            "tn": 3,
+            "precision": null,
+            "recall": 0.0,
+            "f1": null,
+            "fpr": 0.0,
+            "fnr": 1.0,
+            "undefined_reasons": {
+              "precision": "Zero positive predictions (TP + FP == 0)",
+              "f1": "Precision and/or Recall undefined or sum to zero"
+            }
+          }
+        },
+        "classifications": [
+          {
+            "proposition_id": "PROP-AUTH-001",
+            "case_id": "AUTH-001",
+            "category": "authentication",
+            "endpoint": "/api/v1/profile",
+            "method": "GET",
+            "condition": "missing_authentication",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/profile'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-AUTH-002",
+            "case_id": "AUTH-002",
+            "category": "authentication",
+            "endpoint": "/api/v1/admin/users",
+            "method": "GET",
+            "condition": "missing_authentication",
+            "expected": true,
+            "outcome": "TP",
+            "finding_rule_id": "CORR-AUTH-001",
+            "rationale": "Security condition expected present for '/api/v1/admin/users'; matching finding 'CORR-AUTH-001' detected."
+          },
+          {
+            "proposition_id": "PROP-AUTH-003",
+            "case_id": "AUTH-003",
+            "category": "authentication",
+            "endpoint": "/api/v1/health",
+            "method": "GET",
+            "condition": "missing_authentication",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/health'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-AUTH-004",
+            "case_id": "AUTH-004",
+            "category": "authentication",
+            "endpoint": "/api/v1/public/ping",
+            "method": "GET",
+            "condition": "missing_authentication",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/public/ping'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-AUTH-005",
+            "case_id": "AUTH-005",
+            "category": "authentication",
+            "endpoint": "/api/v1/secure/data",
+            "method": "GET",
+            "condition": "missing_authentication",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/secure/data'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-AUTHZ-001",
+            "case_id": "AUTHZ-001",
+            "category": "authorization",
+            "endpoint": "/api/v1/documents/{doc_id}",
+            "method": "GET",
+            "condition": "missing_object_level_authorization",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/documents/{doc_id}'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-AUTHZ-002",
+            "case_id": "AUTHZ-002",
+            "category": "authorization",
+            "endpoint": "/api/v1/accounts/{account_id}",
+            "method": "GET",
+            "condition": "missing_object_level_authorization",
+            "expected": true,
+            "outcome": "TP",
+            "finding_rule_id": "CORR-AUTHZ-001",
+            "rationale": "Security condition expected present for '/api/v1/accounts/{account_id}'; matching finding 'CORR-AUTHZ-001' detected."
+          },
+          {
+            "proposition_id": "PROP-AUTHZ-003",
+            "case_id": "AUTHZ-003",
+            "category": "authorization",
+            "endpoint": "/api/v1/projects/{project_id}",
+            "method": "GET",
+            "condition": "missing_object_level_authorization",
+            "expected": false,
+            "outcome": "FP",
+            "finding_rule_id": "CORR-AUTHZ-001",
+            "rationale": "Security condition expected absent/safe for '/api/v1/projects/{project_id}'; finding 'CORR-AUTHZ-001' reported."
+          },
+          {
+            "proposition_id": "PROP-AUTHZ-004",
+            "case_id": "AUTHZ-004",
+            "category": "authorization",
+            "endpoint": "/api/v1/orders/{order_id}",
+            "method": "GET",
+            "condition": "missing_object_level_authorization",
+            "expected": true,
+            "outcome": "TP",
+            "finding_rule_id": "CORR-AUTHZ-001",
+            "rationale": "Security condition expected present for '/api/v1/orders/{order_id}'; matching finding 'CORR-AUTHZ-001' detected."
+          },
+          {
+            "proposition_id": "PROP-AUTHZ-005",
+            "case_id": "AUTHZ-005",
+            "category": "authorization",
+            "endpoint": "/api/v1/reports/{report_id}",
+            "method": "GET",
+            "condition": "missing_object_level_authorization",
+            "expected": true,
+            "outcome": "TP",
+            "finding_rule_id": "CORR-AUTHZ-001",
+            "rationale": "Security condition expected present for '/api/v1/reports/{report_id}'; matching finding 'CORR-AUTHZ-001' detected."
+          },
+          {
+            "proposition_id": "PROP-INPUT-001",
+            "case_id": "INPUT-001",
+            "category": "input_validation",
+            "endpoint": "/api/v1/users",
+            "method": "POST",
+            "condition": "unconstrained_input",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/users'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-INPUT-002",
+            "case_id": "INPUT-002",
+            "category": "input_validation",
+            "endpoint": "/api/v1/search",
+            "method": "POST",
+            "condition": "unconstrained_input",
+            "expected": true,
+            "outcome": "FN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected present for '/api/v1/search'; no matching finding detected."
+          },
+          {
+            "proposition_id": "PROP-INPUT-003",
+            "case_id": "INPUT-003",
+            "category": "input_validation",
+            "endpoint": "/api/v1/register",
+            "method": "POST",
+            "condition": "unconstrained_input",
+            "expected": true,
+            "outcome": "FN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected present for '/api/v1/register'; no matching finding detected."
+          },
+          {
+            "proposition_id": "PROP-INPUT-004",
+            "case_id": "INPUT-004",
+            "category": "input_validation",
+            "endpoint": "/api/v1/comments",
+            "method": "POST",
+            "condition": "unconstrained_input",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/comments'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-DATA-001",
+            "case_id": "DATA-001",
+            "category": "sensitive_data",
+            "endpoint": "/api/v1/products",
+            "method": "GET",
+            "condition": "sensitive_data_exposure",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/products'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-DATA-002",
+            "case_id": "DATA-002",
+            "category": "sensitive_data",
+            "endpoint": "/api/v1/users/{id}",
+            "method": "GET",
+            "condition": "sensitive_data_exposure",
+            "expected": true,
+            "outcome": "TP",
+            "finding_rule_id": "CORR-DATA-001",
+            "rationale": "Security condition expected present for '/api/v1/users/{id}'; matching finding 'CORR-DATA-001' detected."
+          },
+          {
+            "proposition_id": "PROP-DATA-003",
+            "case_id": "DATA-003",
+            "category": "sensitive_data",
+            "endpoint": "/api/v1/public_key",
+            "method": "GET",
+            "condition": "sensitive_data_exposure",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/public_key'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-DATA-004",
+            "case_id": "DATA-004",
+            "category": "sensitive_data",
+            "endpoint": "/api/v1/items",
+            "method": "GET",
+            "condition": "sensitive_data_exposure",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for '/api/v1/items'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-SECRET-001",
+            "case_id": "SECRET-001",
+            "category": "secrets",
+            "endpoint": "N/A",
+            "method": "N/A",
+            "condition": "hardcoded_secret",
+            "expected": true,
+            "outcome": "FN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected present for 'N/A'; no matching finding detected."
+          },
+          {
+            "proposition_id": "PROP-SECRET-002",
+            "case_id": "SECRET-002",
+            "category": "secrets",
+            "endpoint": "N/A",
+            "method": "N/A",
+            "condition": "hardcoded_secret",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for 'N/A'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-SECRET-003",
+            "case_id": "SECRET-003",
+            "category": "secrets",
+            "endpoint": "N/A",
+            "method": "N/A",
+            "condition": "hardcoded_secret",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for 'N/A'; no finding reported."
+          },
+          {
+            "proposition_id": "PROP-SECRET-004",
+            "case_id": "SECRET-004",
+            "category": "secrets",
+            "endpoint": "N/A",
+            "method": "N/A",
+            "condition": "hardcoded_secret",
+            "expected": false,
+            "outcome": "TN",
+            "finding_rule_id": null,
+            "rationale": "Security condition expected absent/safe for 'N/A'; no finding reported."
+          }
+        ]
+      },
+      "dimension_b": {
+        "score": {
+          "correct_count": 1,
+          "total_count": 1,
+          "accuracy": 1.0,
+          "state_breakdown": {
+            "CONTRADICTED": 1
+          }
+        },
+        "details": [
+          {
+            "target_id": "CORR-TARGET-001",
+            "category": "authentication",
+            "endpoint": "/api/v1/admin/audit",
+            "expected_state": "CONTRADICTED",
+            "actual_state": "CONTRADICTED",
+            "is_correct": true,
+            "finding_rule_id": "CORR-AUTH-001"
+          }
+        ]
+      },
+      "dimension_c": {
+        "score": {
+          "correct_count": 4,
+          "total_count": 4,
+          "accuracy": 1.0,
+          "confusion_matrix": {
+            "EXACT_MATCH->EXACT_MATCH": 1,
+            "PARAMETER_NORMALIZED_MATCH->PARAMETER_NORMALIZED_MATCH": 1,
+            "NO_MATCH->NO_MATCH": 1,
+            "AMBIGUOUS_MATCH->AMBIGUOUS_MATCH": 1
+          }
+        },
+        "details": [
+          {
+            "pair_id": "M1",
+            "spec_path": "/api/v1/health",
+            "spec_method": "GET",
+            "expected_match_state": "EXACT_MATCH",
+            "actual_match_state": "EXACT_MATCH",
+            "is_correct": true
+          },
+          {
+            "pair_id": "M2",
+            "spec_path": "/users/{id}",
+            "spec_method": "GET",
+            "expected_match_state": "PARAMETER_NORMALIZED_MATCH",
+            "actual_match_state": "PARAMETER_NORMALIZED_MATCH",
+            "is_correct": true
+          },
+          {
+            "pair_id": "M3",
+            "spec_path": "/items/search",
+            "spec_method": "POST",
+            "expected_match_state": "NO_MATCH",
+            "actual_match_state": "NO_MATCH",
+            "is_correct": true
+          },
+          {
+            "pair_id": "M4",
+            "spec_path": "/v1/ambiguous/{id}",
+            "spec_method": "GET",
+            "expected_match_state": "AMBIGUOUS_MATCH",
+            "actual_match_state": "AMBIGUOUS_MATCH",
+            "is_correct": true
+          }
+        ]
+      },
+      "evidence_completeness": {
+        "mode": "CORRELATED",
+        "present_count": 90,
+        "missing_count": 0,
+        "not_applicable_count": 0,
+        "score": 1.0,
+        "detail": {
+          "present": "90",
+          "missing": "0",
+          "not_applicable": "0"
+        }
+      },
+      "explainability": {
+        "mode": "CORRELATED",
+        "score": 1.0,
+        "criteria_breakdown": {
+          "affected_endpoint": "PRESENT",
+          "security_condition": "PRESENT",
+          "rule_identifier": "PRESENT",
+          "evidence_detail": "PRESENT",
+          "provenance_file_line": "PRESENT",
+          "rationale": "PRESENT",
+          "correlation_relationship": "PRESENT"
+        }
+      }
+    }
+  }
+}

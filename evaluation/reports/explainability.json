@@ -1,0 +1,44 @@
+{
+  "experiment_id": "4eb72e4c-2ba5-47c8-ad1b-9d992b709f61",
+  "modes": {
+    "SPEC_ONLY": {
+      "mode": "SPEC_ONLY",
+      "score": 1.0,
+      "criteria_breakdown": {
+        "affected_endpoint": "PRESENT",
+        "security_condition": "PRESENT",
+        "rule_identifier": "PRESENT",
+        "evidence_detail": "PRESENT",
+        "provenance_file_line": "NOT_APPLICABLE",
+        "rationale": "PRESENT",
+        "correlation_relationship": "NOT_APPLICABLE"
+      }
+    },
+    "SOURCE_ONLY": {
+      "mode": "SOURCE_ONLY",
+      "score": 0.9885057471264368,
+      "criteria_breakdown": {
+        "affected_endpoint": "PRESENT",
+        "security_condition": "PRESENT",
+        "rule_identifier": "PRESENT",
+        "evidence_detail": "PRESENT",
+        "provenance_file_line": "PRESENT",
+        "rationale": "PRESENT",
+        "correlation_relationship": "NOT_APPLICABLE"
+      }
+    },
+    "CORRELATED": {
+      "mode": "CORRELATED",
+      "score": 1.0,
+      "criteria_breakdown": {
+        "affected_endpoint": "PRESENT",
+        "security_condition": "PRESENT",
+        "rule_identifier": "PRESENT",
+        "evidence_detail": "PRESENT",
+        "provenance_file_line": "PRESENT",
+        "rationale": "PRESENT",
+        "correlation_relationship": "PRESENT"
+      }
+    }
+  }
+}

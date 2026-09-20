@@ -1,0 +1,19 @@
+openapi: 3.0.3
+info:
+  title: "AUTHZ-001 API"
+  version: "1.0.0"
+
+paths:
+  /api/v1/documents/{doc_id}:
+    get:
+      summary: Get Document
+      parameters:
+        - name: doc_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+

@@ -1,0 +1,20 @@
+openapi: 3.0.3
+info:
+  title: "AUTH-005 API"
+  version: "1.0.0"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+paths:
+  /api/v1/secure/data:
+    get:
+      summary: Secure Data
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+

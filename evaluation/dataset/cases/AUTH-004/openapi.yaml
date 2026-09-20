@@ -1,0 +1,19 @@
+openapi: 3.0.3
+info:
+  title: "AUTH-004 API"
+  version: "1.0.0"
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+paths:
+  /api/v1/public/ping:
+    get:
+      summary: Public Ping
+      security: []
+      responses:
+        '200':
+          description: OK

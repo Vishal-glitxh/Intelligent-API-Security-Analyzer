@@ -1,0 +1,15 @@
+case_id: DATA-002
+category: sensitive_data
+description: Clearly sensitive response field exposed.
+ground_truth_label: SECURITY_CONDITION_PRESENT
+dataset_version: 6.0.0
+evaluation_role: FINAL
+propositions:
+- proposition_id: PROP-DATA-002
+  category: sensitive_data
+  endpoint: /api/v1/users/{id}
+  method: GET
+  condition: sensitive_data_exposure
+  expected: true
+expected_endpoint_pairs: []
+expected_correlations: []

@@ -18,3 +18,5 @@ node_modules/
 
 scratch/*.zip
 scratch/runtime-test-api/
+# Phase 6 generated evaluation runs
+evaluation/runs/

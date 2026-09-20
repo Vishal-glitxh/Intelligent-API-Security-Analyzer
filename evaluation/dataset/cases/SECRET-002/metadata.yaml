@@ -1,0 +1,15 @@
+case_id: SECRET-002
+category: secrets
+description: Secret loaded from environment/configuration.
+ground_truth_label: SECURITY_CONDITION_ABSENT
+dataset_version: 6.0.0
+evaluation_role: FINAL
+propositions:
+- proposition_id: PROP-SECRET-002
+  category: secrets
+  endpoint: N/A
+  method: N/A
+  condition: hardcoded_secret
+  expected: false
+expected_endpoint_pairs: []
+expected_correlations: []

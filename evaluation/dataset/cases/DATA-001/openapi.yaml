@@ -1,0 +1,13 @@
+openapi: 3.0.3
+info:
+  title: "DATA-001 API"
+  version: "1.0.0"
+
+paths:
+  /api/v1/products:
+    get:
+      summary: List Products
+      responses:
+        '200':
+          description: OK
+

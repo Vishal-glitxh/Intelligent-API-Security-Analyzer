@@ -1,0 +1,13 @@
+openapi: 3.0.3
+info:
+  title: "SECRET-001 API"
+  version: "1.0.0"
+
+paths:
+  /api/v1/status:
+    get:
+      summary: Status
+      responses:
+        '200':
+          description: OK
+

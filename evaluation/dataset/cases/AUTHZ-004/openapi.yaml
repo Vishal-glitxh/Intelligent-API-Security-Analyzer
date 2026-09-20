@@ -1,0 +1,26 @@
+openapi: 3.0.3
+info:
+  title: "AUTHZ-004 API"
+  version: "1.0.0"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+paths:
+  /api/v1/orders/{order_id}:
+    get:
+      summary: Get Order
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+

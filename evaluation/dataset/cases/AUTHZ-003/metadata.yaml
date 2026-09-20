@@ -1,0 +1,15 @@
+case_id: AUTHZ-003
+category: authorization
+description: Authorization delegated through helper/dependency.
+ground_truth_label: SECURITY_CONDITION_ABSENT
+dataset_version: 6.0.0
+evaluation_role: FINAL
+propositions:
+- proposition_id: PROP-AUTHZ-003
+  category: authorization
+  endpoint: /api/v1/projects/{project_id}
+  method: GET
+  condition: missing_object_level_authorization
+  expected: false
+expected_endpoint_pairs: []
+expected_correlations: []

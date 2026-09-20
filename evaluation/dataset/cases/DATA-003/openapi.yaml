@@ -1,0 +1,13 @@
+openapi: 3.0.3
+info:
+  title: "DATA-003 API"
+  version: "1.0.0"
+
+paths:
+  /api/v1/public_key:
+    get:
+      summary: Get Server Public Key
+      responses:
+        '200':
+          description: Public Key
+

@@ -1,0 +1,15 @@
+case_id: INPUT-002
+category: input_validation
+description: Security-relevant input is insufficiently constrained.
+ground_truth_label: SECURITY_CONDITION_PRESENT
+dataset_version: 6.0.0
+evaluation_role: FINAL
+propositions:
+- proposition_id: PROP-INPUT-002
+  category: input_validation
+  endpoint: /api/v1/search
+  method: POST
+  condition: unconstrained_input
+  expected: true
+expected_endpoint_pairs: []
+expected_correlations: []

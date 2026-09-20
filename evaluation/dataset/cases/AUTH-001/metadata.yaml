@@ -1,0 +1,15 @@
+case_id: AUTH-001
+category: authentication
+description: Protected endpoint with authentication correctly enforced.
+ground_truth_label: SECURITY_CONDITION_ABSENT
+dataset_version: 6.0.0
+evaluation_role: FINAL
+propositions:
+- proposition_id: PROP-AUTH-001
+  category: authentication
+  endpoint: /api/v1/profile
+  method: GET
+  condition: missing_authentication
+  expected: false
+expected_endpoint_pairs: []
+expected_correlations: []

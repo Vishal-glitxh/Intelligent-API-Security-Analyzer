@@ -1,0 +1,14 @@
+openapi: 3.0.3
+info:
+  title: "AUTH-003 API"
+  version: "1.0.0"
+
+paths:
+  /api/v1/health:
+    get:
+      summary: Health check
+      security: []
+      responses:
+        '200':
+          description: OK
+

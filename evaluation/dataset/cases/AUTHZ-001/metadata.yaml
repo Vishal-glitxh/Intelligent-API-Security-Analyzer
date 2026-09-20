@@ -1,0 +1,15 @@
+case_id: AUTHZ-001
+category: authorization
+description: Object lookup plus object-level authorization evidence.
+ground_truth_label: SECURITY_CONDITION_ABSENT
+dataset_version: 6.0.0
+evaluation_role: FINAL
+propositions:
+- proposition_id: PROP-AUTHZ-001
+  category: authorization
+  endpoint: /api/v1/documents/{doc_id}
+  method: GET
+  condition: missing_object_level_authorization
+  expected: false
+expected_endpoint_pairs: []
+expected_correlations: []

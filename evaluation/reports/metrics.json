@@ -1,0 +1,254 @@
+{
+  "experiment_id": "4eb72e4c-2ba5-47c8-ad1b-9d992b709f61",
+  "dataset_version": "6.0.0",
+  "modes": {
+    "SPEC_ONLY": {
+      "overall": {
+        "tp": 4,
+        "fp": 4,
+        "fn": 4,
+        "tn": 10,
+        "precision": 0.5,
+        "recall": 0.5,
+        "f1": 0.5,
+        "fpr": 0.2857142857142857,
+        "fnr": 0.5,
+        "undefined_reasons": {}
+      },
+      "categories": {
+        "authentication": {
+          "tp": 0,
+          "fp": 2,
+          "fn": 1,
+          "tn": 2,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": null,
+          "fpr": 0.5,
+          "fnr": 1.0,
+          "undefined_reasons": {
+            "f1": "Precision and/or Recall undefined or sum to zero"
+          }
+        },
+        "authorization": {
+          "tp": 3,
+          "fp": 2,
+          "fn": 0,
+          "tn": 0,
+          "precision": 0.6,
+          "recall": 1.0,
+          "f1": 0.7499999999999999,
+          "fpr": 1.0,
+          "fnr": 0.0,
+          "undefined_reasons": {}
+        },
+        "input_validation": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 2,
+          "tn": 2,
+          "precision": null,
+          "recall": 0.0,
+          "f1": null,
+          "fpr": 0.0,
+          "fnr": 1.0,
+          "undefined_reasons": {
+            "precision": "Zero positive predictions (TP + FP == 0)",
+            "f1": "Precision and/or Recall undefined or sum to zero"
+          }
+        },
+        "sensitive_data": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "tn": 3,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "fpr": 0.0,
+          "fnr": 0.0,
+          "undefined_reasons": {}
+        },
+        "secrets": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 3,
+          "precision": null,
+          "recall": 0.0,
+          "f1": null,
+          "fpr": 0.0,
+          "fnr": 1.0,
+          "undefined_reasons": {
+            "precision": "Zero positive predictions (TP + FP == 0)",
+            "f1": "Precision and/or Recall undefined or sum to zero"
+          }
+        }
+      }
+    },
+    "SOURCE_ONLY": {
+      "overall": {
+        "tp": 5,
+        "fp": 4,
+        "fn": 3,
+        "tn": 10,
+        "precision": 0.5555555555555556,
+        "recall": 0.625,
+        "f1": 0.5882352941176471,
+        "fpr": 0.2857142857142857,
+        "fnr": 0.375,
+        "undefined_reasons": {}
+      },
+      "categories": {
+        "authentication": {
+          "tp": 1,
+          "fp": 2,
+          "fn": 0,
+          "tn": 2,
+          "precision": 0.3333333333333333,
+          "recall": 1.0,
+          "f1": 0.5,
+          "fpr": 0.5,
+          "fnr": 0.0,
+          "undefined_reasons": {}
+        },
+        "authorization": {
+          "tp": 3,
+          "fp": 1,
+          "fn": 0,
+          "tn": 1,
+          "precision": 0.75,
+          "recall": 1.0,
+          "f1": 0.8571428571428571,
+          "fpr": 0.5,
+          "fnr": 0.0,
+          "undefined_reasons": {}
+        },
+        "input_validation": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 2,
+          "tn": 2,
+          "precision": null,
+          "recall": 0.0,
+          "f1": null,
+          "fpr": 0.0,
+          "fnr": 1.0,
+          "undefined_reasons": {
+            "precision": "Zero positive predictions (TP + FP == 0)",
+            "f1": "Precision and/or Recall undefined or sum to zero"
+          }
+        },
+        "sensitive_data": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 3,
+          "precision": null,
+          "recall": 0.0,
+          "f1": null,
+          "fpr": 0.0,
+          "fnr": 1.0,
+          "undefined_reasons": {
+            "precision": "Zero positive predictions (TP + FP == 0)",
+            "f1": "Precision and/or Recall undefined or sum to zero"
+          }
+        },
+        "secrets": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 0,
+          "tn": 2,
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6666666666666666,
+          "fpr": 0.3333333333333333,
+          "fnr": 0.0,
+          "undefined_reasons": {}
+        }
+      }
+    },
+    "CORRELATED": {
+      "overall": {
+        "tp": 5,
+        "fp": 1,
+        "fn": 3,
+        "tn": 13,
+        "precision": 0.8333333333333334,
+        "recall": 0.625,
+        "f1": 0.7142857142857143,
+        "fpr": 0.07142857142857142,
+        "fnr": 0.375,
+        "undefined_reasons": {}
+      },
+      "categories": {
+        "authentication": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "tn": 4,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "fpr": 0.0,
+          "fnr": 0.0,
+          "undefined_reasons": {}
+        },
+        "authorization": {
+          "tp": 3,
+          "fp": 1,
+          "fn": 0,
+          "tn": 1,
+          "precision": 0.75,
+          "recall": 1.0,
+          "f1": 0.8571428571428571,
+          "fpr": 0.5,
+          "fnr": 0.0,
+          "undefined_reasons": {}
+        },
+        "input_validation": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 2,
+          "tn": 2,
+          "precision": null,
+          "recall": 0.0,
+          "f1": null,
+          "fpr": 0.0,
+          "fnr": 1.0,
+          "undefined_reasons": {
+            "precision": "Zero positive predictions (TP + FP == 0)",
+            "f1": "Precision and/or Recall undefined or sum to zero"
+          }
+        },
+        "sensitive_data": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "tn": 3,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "fpr": 0.0,
+          "fnr": 0.0,
+          "undefined_reasons": {}
+        },
+        "secrets": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 3,
+          "precision": null,
+          "recall": 0.0,
+          "f1": null,
+          "fpr": 0.0,
+          "fnr": 1.0,
+          "undefined_reasons": {
+            "precision": "Zero positive predictions (TP + FP == 0)",
+            "f1": "Precision and/or Recall undefined or sum to zero"
+          }
+        }
+      }
+    }
+  }
+}

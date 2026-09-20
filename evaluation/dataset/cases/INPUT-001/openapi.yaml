@@ -1,0 +1,28 @@
+openapi: 3.0.3
+info:
+  title: "INPUT-001 API"
+  version: "1.0.0"
+
+paths:
+  /api/v1/users:
+    post:
+      summary: Create User
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, email]
+              properties:
+                username:
+                  type: string
+                  minLength: 3
+                  maxLength: 20
+                email:
+                  type: string
+                  pattern: '^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+      responses:
+        '201':
+          description: Created
+

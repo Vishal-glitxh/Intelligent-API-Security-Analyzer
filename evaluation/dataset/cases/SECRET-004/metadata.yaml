@@ -1,0 +1,15 @@
+case_id: SECRET-004
+category: secrets
+description: Test fixture value.
+ground_truth_label: SECURITY_CONDITION_ABSENT
+dataset_version: 6.0.0
+evaluation_role: FINAL
+propositions:
+- proposition_id: PROP-SECRET-004
+  category: secrets
+  endpoint: N/A
+  method: N/A
+  condition: hardcoded_secret
+  expected: false
+expected_endpoint_pairs: []
+expected_correlations: []

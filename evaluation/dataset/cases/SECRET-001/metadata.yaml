@@ -1,0 +1,15 @@
+case_id: SECRET-001
+category: secrets
+description: Actual hardcoded credential/token (controlled fake AWS key).
+ground_truth_label: SECURITY_CONDITION_PRESENT
+dataset_version: 6.0.0
+evaluation_role: FINAL
+propositions:
+- proposition_id: PROP-SECRET-001
+  category: secrets
+  endpoint: N/A
+  method: N/A
+  condition: hardcoded_secret
+  expected: true
+expected_endpoint_pairs: []
+expected_correlations: []

@@ -1,0 +1,19 @@
+openapi: 3.0.3
+info:
+  title: "AUTHZ-002 API"
+  version: "1.0.0"
+
+paths:
+  /api/v1/accounts/{account_id}:
+    get:
+      summary: Get Account
+      parameters:
+        - name: account_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+
