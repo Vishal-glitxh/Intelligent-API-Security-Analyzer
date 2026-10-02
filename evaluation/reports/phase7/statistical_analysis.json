@@ -1,0 +1,892 @@
+{
+  "dataset_version": "6.0.0",
+  "total_cases": 22,
+  "dimension_a_propositions_count": 22,
+  "confidence_intervals": [
+    {
+      "metric": "precision",
+      "mode": "SPEC_ONLY",
+      "estimate": 0.5,
+      "confidence_level": 0.95,
+      "method": "wilson_score",
+      "sample_size": 8,
+      "lower": 0.2152,
+      "upper": 0.7848
+    },
+    {
+      "metric": "recall",
+      "mode": "SPEC_ONLY",
+      "estimate": 0.5,
+      "confidence_level": 0.95,
+      "method": "wilson_score",
+      "sample_size": 8,
+      "lower": 0.2152,
+      "upper": 0.7848
+    },
+    {
+      "metric": "fpr",
+      "mode": "SPEC_ONLY",
+      "estimate": 0.2857,
+      "confidence_level": 0.95,
+      "method": "wilson_score",
+      "sample_size": 14,
+      "lower": 0.1172,
+      "upper": 0.5465
+    },
+    {
+      "metric": "fnr",
+      "mode": "SPEC_ONLY",
+      "estimate": 0.5,
+      "confidence_level": 0.95,
+      "method": "wilson_score",
+      "sample_size": 8,
+      "lower": 0.2152,
+      "upper": 0.7848
+    },
+    {
+      "metric": "f1",
+      "mode": "SPEC_ONLY",
+      "estimate": 0.5,
+      "confidence_level": 0.95,
+      "method": "bootstrap_percentile",
+      "sample_size": 22,
+      "seed": 42,
+      "bootstrap_samples": 10000,
+      "lower": 0.1667,
+      "upper": 0.7692
+    },
+    {
+      "metric": "precision",
+      "mode": "SOURCE_ONLY",
+      "estimate": 0.5556,
+      "confidence_level": 0.95,
+      "method": "wilson_score",
+      "sample_size": 9,
+      "lower": 0.2667,
+      "upper": 0.8112
+    },
+    {
+      "metric": "recall",
+      "mode": "SOURCE_ONLY",
+      "estimate": 0.625,
+      "confidence_level": 0.95,
+      "method": "wilson_score",
+      "sample_size": 8,
+      "lower": 0.3057,
+      "upper": 0.8632
+    },
+    {
+      "metric": "fpr",
+      "mode": "SOURCE_ONLY",
+      "estimate": 0.2857,
+      "confidence_level": 0.95,
+      "method": "wilson_score",
+      "sample_size": 14,
+      "lower": 0.1172,
+      "upper": 0.5465
+    },
+    {
+      "metric": "fnr",
+      "mode": "SOURCE_ONLY",
+      "estimate": 0.375,
+      "confidence_level": 0.95,
+      "method": "wilson_score",
+      "sample_size": 8,
+      "lower": 0.1368,
+      "upper": 0.6943
+    },
+    {
+      "metric": "f1",
+      "mode": "SOURCE_ONLY",
+      "estimate": 0.5882,
+      "confidence_level": 0.95,
+      "method": "bootstrap_percentile",
+      "sample_size": 22,
+      "seed": 42,
+      "bootstrap_samples": 10000,
+      "lower": 0.2667,
+      "upper": 0.8333
+    },
+    {
+      "metric": "precision",
+      "mode": "CORRELATED",
+      "estimate": 0.8333,
+      "confidence_level": 0.95,
+      "method": "wilson_score",
+      "sample_size": 6,
+      "lower": 0.4365,
+      "upper": 0.9699
+    },
+    {
+      "metric": "recall",
+      "mode": "CORRELATED",
+      "estimate": 0.625,
+      "confidence_level": 0.95,
+      "method": "wilson_score",
+      "sample_size": 8,
+      "lower": 0.3057,
+      "upper": 0.8632
+    },
+    {
+      "metric": "fpr",
+      "mode": "CORRELATED",
+      "estimate": 0.0714,
+      "confidence_level": 0.95,
+      "method": "wilson_score",
+      "sample_size": 14,
+      "lower": 0.0127,
+      "upper": 0.3147
+    },
+    {
+      "metric": "fnr",
+      "mode": "CORRELATED",
+      "estimate": 0.375,
+      "confidence_level": 0.95,
+      "method": "wilson_score",
+      "sample_size": 8,
+      "lower": 0.1368,
+      "upper": 0.6943
+    },
+    {
+      "metric": "f1",
+      "mode": "CORRELATED",
+      "estimate": 0.7143,
+      "confidence_level": 0.95,
+      "method": "bootstrap_percentile",
+      "sample_size": 22,
+      "seed": 42,
+      "bootstrap_samples": 10000,
+      "lower": 0.3636,
+      "upper": 0.9333
+    },
+    {
+      "metric": "dimension_b_correlation_accuracy",
+      "mode": "CORRELATED",
+      "estimate": 1.0,
+      "confidence_level": 0.95,
+      "method": "wilson_score",
+      "sample_size": 1,
+      "lower": 0.2065,
+      "upper": 1.0
+    },
+    {
+      "metric": "dimension_c_endpoint_match_accuracy",
+      "mode": "CORRELATED",
+      "estimate": 1.0,
+      "confidence_level": 0.95,
+      "method": "wilson_score",
+      "sample_size": 4,
+      "lower": 0.5101,
+      "upper": 1.0
+    }
+  ],
+  "mode_comparisons": [
+    {
+      "metric": "precision",
+      "baseline_mode": "SPEC_ONLY",
+      "comparison_mode": "CORRELATED",
+      "baseline_value": 0.5,
+      "comparison_value": 0.8333,
+      "absolute_difference": 0.3333,
+      "statistically_significant": false,
+      "notes": "Absolute difference comparing SPEC_ONLY against CORRELATED mode. Statistical significance is not claimed due to small benchmark sample size (N=22 propositions)."
+    },
+    {
+      "metric": "recall",
+      "baseline_mode": "SPEC_ONLY",
+      "comparison_mode": "CORRELATED",
+      "baseline_value": 0.5,
+      "comparison_value": 0.625,
+      "absolute_difference": 0.125,
+      "statistically_significant": false,
+      "notes": "Absolute difference comparing SPEC_ONLY against CORRELATED mode. Statistical significance is not claimed due to small benchmark sample size (N=22 propositions)."
+    },
+    {
+      "metric": "f1",
+      "baseline_mode": "SPEC_ONLY",
+      "comparison_mode": "CORRELATED",
+      "baseline_value": 0.5,
+      "comparison_value": 0.7143,
+      "absolute_difference": 0.2143,
+      "statistically_significant": false,
+      "notes": "Absolute difference comparing SPEC_ONLY against CORRELATED mode. Statistical significance is not claimed due to small benchmark sample size (N=22 propositions)."
+    },
+    {
+      "metric": "fpr",
+      "baseline_mode": "SPEC_ONLY",
+      "comparison_mode": "CORRELATED",
+      "baseline_value": 0.2857,
+      "comparison_value": 0.0714,
+      "absolute_difference": -0.2143,
+      "statistically_significant": false,
+      "notes": "Absolute difference comparing SPEC_ONLY against CORRELATED mode. Statistical significance is not claimed due to small benchmark sample size (N=22 propositions)."
+    },
+    {
+      "metric": "fnr",
+      "baseline_mode": "SPEC_ONLY",
+      "comparison_mode": "CORRELATED",
+      "baseline_value": 0.5,
+      "comparison_value": 0.375,
+      "absolute_difference": -0.125,
+      "statistically_significant": false,
+      "notes": "Absolute difference comparing SPEC_ONLY against CORRELATED mode. Statistical significance is not claimed due to small benchmark sample size (N=22 propositions)."
+    },
+    {
+      "metric": "precision",
+      "baseline_mode": "SOURCE_ONLY",
+      "comparison_mode": "CORRELATED",
+      "baseline_value": 0.5556,
+      "comparison_value": 0.8333,
+      "absolute_difference": 0.2778,
+      "statistically_significant": false,
+      "notes": "Absolute difference comparing SOURCE_ONLY against CORRELATED mode. Statistical significance is not claimed due to small benchmark sample size (N=22 propositions)."
+    },
+    {
+      "metric": "recall",
+      "baseline_mode": "SOURCE_ONLY",
+      "comparison_mode": "CORRELATED",
+      "baseline_value": 0.625,
+      "comparison_value": 0.625,
+      "absolute_difference": 0.0,
+      "statistically_significant": false,
+      "notes": "Absolute difference comparing SOURCE_ONLY against CORRELATED mode. Statistical significance is not claimed due to small benchmark sample size (N=22 propositions)."
+    },
+    {
+      "metric": "f1",
+      "baseline_mode": "SOURCE_ONLY",
+      "comparison_mode": "CORRELATED",
+      "baseline_value": 0.5882,
+      "comparison_value": 0.7143,
+      "absolute_difference": 0.1261,
+      "statistically_significant": false,
+      "notes": "Absolute difference comparing SOURCE_ONLY against CORRELATED mode. Statistical significance is not claimed due to small benchmark sample size (N=22 propositions)."
+    },
+    {
+      "metric": "fpr",
+      "baseline_mode": "SOURCE_ONLY",
+      "comparison_mode": "CORRELATED",
+      "baseline_value": 0.2857,
+      "comparison_value": 0.0714,
+      "absolute_difference": -0.2143,
+      "statistically_significant": false,
+      "notes": "Absolute difference comparing SOURCE_ONLY against CORRELATED mode. Statistical significance is not claimed due to small benchmark sample size (N=22 propositions)."
+    },
+    {
+      "metric": "fnr",
+      "baseline_mode": "SOURCE_ONLY",
+      "comparison_mode": "CORRELATED",
+      "baseline_value": 0.375,
+      "comparison_value": 0.375,
+      "absolute_difference": 0.0,
+      "statistically_significant": false,
+      "notes": "Absolute difference comparing SOURCE_ONLY against CORRELATED mode. Statistical significance is not claimed due to small benchmark sample size (N=22 propositions)."
+    }
+  ],
+  "correlation_effects": {
+    "proposition_count": 22,
+    "records": [
+      {
+        "proposition_id": "PROP-AUTH-001",
+        "case_id": "AUTH-001",
+        "category": "authentication",
+        "endpoint": "/api/v1/profile",
+        "method": "GET",
+        "spec_outcome": "TN",
+        "source_outcome": "TN",
+        "corr_outcome": "TN",
+        "spec_to_corr": "TN_TO_TN",
+        "source_to_corr": "TN_TO_TN",
+        "effect_type": "TN_TO_TN",
+        "rationale": "Security condition expected absent/safe for '/api/v1/profile'; no finding reported."
+      },
+      {
+        "proposition_id": "PROP-AUTH-002",
+        "case_id": "AUTH-002",
+        "category": "authentication",
+        "endpoint": "/api/v1/admin/users",
+        "method": "GET",
+        "spec_outcome": "FN",
+        "source_outcome": "TP",
+        "corr_outcome": "TP",
+        "spec_to_corr": "FN_TO_TP",
+        "source_to_corr": "TP_TO_TP",
+        "effect_type": "FN_REMOVED",
+        "rationale": "Security condition expected present for '/api/v1/admin/users'; matching finding 'CORR-AUTH-001' detected."
+      },
+      {
+        "proposition_id": "PROP-AUTH-003",
+        "case_id": "AUTH-003",
+        "category": "authentication",
+        "endpoint": "/api/v1/health",
+        "method": "GET",
+        "spec_outcome": "FP",
+        "source_outcome": "FP",
+        "corr_outcome": "TN",
+        "spec_to_corr": "FP_TO_TN",
+        "source_to_corr": "FP_TO_TN",
+        "effect_type": "FP_REMOVED",
+        "rationale": "Security condition expected absent/safe for '/api/v1/health'; no finding reported."
+      },
+      {
+        "proposition_id": "PROP-AUTH-004",
+        "case_id": "AUTH-004",
+        "category": "authentication",
+        "endpoint": "/api/v1/public/ping",
+        "method": "GET",
+        "spec_outcome": "FP",
+        "source_outcome": "FP",
+        "corr_outcome": "TN",
+        "spec_to_corr": "FP_TO_TN",
+        "source_to_corr": "FP_TO_TN",
+        "effect_type": "FP_REMOVED",
+        "rationale": "Security condition expected absent/safe for '/api/v1/public/ping'; no finding reported."
+      },
+      {
+        "proposition_id": "PROP-AUTH-005",
+        "case_id": "AUTH-005",
+        "category": "authentication",
+        "endpoint": "/api/v1/secure/data",
+        "method": "GET",
+        "spec_outcome": "TN",
+        "source_outcome": "TN",
+        "corr_outcome": "TN",
+        "spec_to_corr": "TN_TO_TN",
+        "source_to_corr": "TN_TO_TN",
+        "effect_type": "TN_TO_TN",
+        "rationale": "Security condition expected absent/safe for '/api/v1/secure/data'; no finding reported."
+      },
+      {
+        "proposition_id": "PROP-AUTHZ-001",
+        "case_id": "AUTHZ-001",
+        "category": "authorization",
+        "endpoint": "/api/v1/documents/{doc_id}",
+        "method": "GET",
+        "spec_outcome": "FP",
+        "source_outcome": "TN",
+        "corr_outcome": "TN",
+        "spec_to_corr": "FP_TO_TN",
+        "source_to_corr": "TN_TO_TN",
+        "effect_type": "FP_REMOVED",
+        "rationale": "Security condition expected absent/safe for '/api/v1/documents/{doc_id}'; no finding reported."
+      },
+      {
+        "proposition_id": "PROP-AUTHZ-002",
+        "case_id": "AUTHZ-002",
+        "category": "authorization",
+        "endpoint": "/api/v1/accounts/{account_id}",
+        "method": "GET",
+        "spec_outcome": "TP",
+        "source_outcome": "TP",
+        "corr_outcome": "TP",
+        "spec_to_corr": "TP_TO_TP",
+        "source_to_corr": "TP_TO_TP",
+        "effect_type": "TP_TO_TP",
+        "rationale": "Security condition expected present for '/api/v1/accounts/{account_id}'; matching finding 'CORR-AUTHZ-001' detected."
+      },
+      {
+        "proposition_id": "PROP-AUTHZ-003",
+        "case_id": "AUTHZ-003",
+        "category": "authorization",
+        "endpoint": "/api/v1/projects/{project_id}",
+        "method": "GET",
+        "spec_outcome": "FP",
+        "source_outcome": "FP",
+        "corr_outcome": "FP",
+        "spec_to_corr": "FP_TO_FP",
+        "source_to_corr": "FP_TO_FP",
+        "effect_type": "FP_TO_FP",
+        "rationale": "Security condition expected absent/safe for '/api/v1/projects/{project_id}'; finding 'CORR-AUTHZ-001' reported."
+      },
+      {
+        "proposition_id": "PROP-AUTHZ-004",
+        "case_id": "AUTHZ-004",
+        "category": "authorization",
+        "endpoint": "/api/v1/orders/{order_id}",
+        "method": "GET",
+        "spec_outcome": "TP",
+        "source_outcome": "TP",
+        "corr_outcome": "TP",
+        "spec_to_corr": "TP_TO_TP",
+        "source_to_corr": "TP_TO_TP",
+        "effect_type": "TP_TO_TP",
+        "rationale": "Security condition expected present for '/api/v1/orders/{order_id}'; matching finding 'CORR-AUTHZ-001' detected."
+      },
+      {
+        "proposition_id": "PROP-AUTHZ-005",
+        "case_id": "AUTHZ-005",
+        "category": "authorization",
+        "endpoint": "/api/v1/reports/{report_id}",
+        "method": "GET",
+        "spec_outcome": "TP",
+        "source_outcome": "TP",
+        "corr_outcome": "TP",
+        "spec_to_corr": "TP_TO_TP",
+        "source_to_corr": "TP_TO_TP",
+        "effect_type": "TP_TO_TP",
+        "rationale": "Security condition expected present for '/api/v1/reports/{report_id}'; matching finding 'CORR-AUTHZ-001' detected."
+      },
+      {
+        "proposition_id": "PROP-DATA-001",
+        "case_id": "DATA-001",
+        "category": "sensitive_data",
+        "endpoint": "/api/v1/products",
+        "method": "GET",
+        "spec_outcome": "TN",
+        "source_outcome": "TN",
+        "corr_outcome": "TN",
+        "spec_to_corr": "TN_TO_TN",
+        "source_to_corr": "TN_TO_TN",
+        "effect_type": "TN_TO_TN",
+        "rationale": "Security condition expected absent/safe for '/api/v1/products'; no finding reported."
+      },
+      {
+        "proposition_id": "PROP-DATA-002",
+        "case_id": "DATA-002",
+        "category": "sensitive_data",
+        "endpoint": "/api/v1/users/{id}",
+        "method": "GET",
+        "spec_outcome": "TP",
+        "source_outcome": "FN",
+        "corr_outcome": "TP",
+        "spec_to_corr": "TP_TO_TP",
+        "source_to_corr": "FN_TO_TP",
+        "effect_type": "FN_REMOVED",
+        "rationale": "Security condition expected present for '/api/v1/users/{id}'; matching finding 'CORR-DATA-001' detected."
+      },
+      {
+        "proposition_id": "PROP-DATA-003",
+        "case_id": "DATA-003",
+        "category": "sensitive_data",
+        "endpoint": "/api/v1/public_key",
+        "method": "GET",
+        "spec_outcome": "TN",
+        "source_outcome": "TN",
+        "corr_outcome": "TN",
+        "spec_to_corr": "TN_TO_TN",
+        "source_to_corr": "TN_TO_TN",
+        "effect_type": "TN_TO_TN",
+        "rationale": "Security condition expected absent/safe for '/api/v1/public_key'; no finding reported."
+      },
+      {
+        "proposition_id": "PROP-DATA-004",
+        "case_id": "DATA-004",
+        "category": "sensitive_data",
+        "endpoint": "/api/v1/items",
+        "method": "GET",
+        "spec_outcome": "TN",
+        "source_outcome": "TN",
+        "corr_outcome": "TN",
+        "spec_to_corr": "TN_TO_TN",
+        "source_to_corr": "TN_TO_TN",
+        "effect_type": "TN_TO_TN",
+        "rationale": "Security condition expected absent/safe for '/api/v1/items'; no finding reported."
+      },
+      {
+        "proposition_id": "PROP-INPUT-001",
+        "case_id": "INPUT-001",
+        "category": "input_validation",
+        "endpoint": "/api/v1/users",
+        "method": "POST",
+        "spec_outcome": "TN",
+        "source_outcome": "TN",
+        "corr_outcome": "TN",
+        "spec_to_corr": "TN_TO_TN",
+        "source_to_corr": "TN_TO_TN",
+        "effect_type": "TN_TO_TN",
+        "rationale": "Security condition expected absent/safe for '/api/v1/users'; no finding reported."
+      },
+      {
+        "proposition_id": "PROP-INPUT-002",
+        "case_id": "INPUT-002",
+        "category": "input_validation",
+        "endpoint": "/api/v1/search",
+        "method": "POST",
+        "spec_outcome": "FN",
+        "source_outcome": "FN",
+        "corr_outcome": "FN",
+        "spec_to_corr": "FN_TO_FN",
+        "source_to_corr": "FN_TO_FN",
+        "effect_type": "FN_TO_FN",
+        "rationale": "Security condition expected present for '/api/v1/search'; no matching finding detected."
+      },
+      {
+        "proposition_id": "PROP-INPUT-003",
+        "case_id": "INPUT-003",
+        "category": "input_validation",
+        "endpoint": "/api/v1/register",
+        "method": "POST",
+        "spec_outcome": "FN",
+        "source_outcome": "FN",
+        "corr_outcome": "FN",
+        "spec_to_corr": "FN_TO_FN",
+        "source_to_corr": "FN_TO_FN",
+        "effect_type": "FN_TO_FN",
+        "rationale": "Security condition expected present for '/api/v1/register'; no matching finding detected."
+      },
+      {
+        "proposition_id": "PROP-INPUT-004",
+        "case_id": "INPUT-004",
+        "category": "input_validation",
+        "endpoint": "/api/v1/comments",
+        "method": "POST",
+        "spec_outcome": "TN",
+        "source_outcome": "TN",
+        "corr_outcome": "TN",
+        "spec_to_corr": "TN_TO_TN",
+        "source_to_corr": "TN_TO_TN",
+        "effect_type": "TN_TO_TN",
+        "rationale": "Security condition expected absent/safe for '/api/v1/comments'; no finding reported."
+      },
+      {
+        "proposition_id": "PROP-SECRET-001",
+        "case_id": "SECRET-001",
+        "category": "secrets",
+        "endpoint": "N/A",
+        "method": "N/A",
+        "spec_outcome": "FN",
+        "source_outcome": "TP",
+        "corr_outcome": "FN",
+        "spec_to_corr": "FN_TO_FN",
+        "source_to_corr": "TP_TO_FN",
+        "effect_type": "FN_INTRODUCED",
+        "rationale": "Security condition expected present for 'N/A'; no matching finding detected."
+      },
+      {
+        "proposition_id": "PROP-SECRET-002",
+        "case_id": "SECRET-002",
+        "category": "secrets",
+        "endpoint": "N/A",
+        "method": "N/A",
+        "spec_outcome": "TN",
+        "source_outcome": "TN",
+        "corr_outcome": "TN",
+        "spec_to_corr": "TN_TO_TN",
+        "source_to_corr": "TN_TO_TN",
+        "effect_type": "TN_TO_TN",
+        "rationale": "Security condition expected absent/safe for 'N/A'; no finding reported."
+      },
+      {
+        "proposition_id": "PROP-SECRET-003",
+        "case_id": "SECRET-003",
+        "category": "secrets",
+        "endpoint": "N/A",
+        "method": "N/A",
+        "spec_outcome": "TN",
+        "source_outcome": "TN",
+        "corr_outcome": "TN",
+        "spec_to_corr": "TN_TO_TN",
+        "source_to_corr": "TN_TO_TN",
+        "effect_type": "TN_TO_TN",
+        "rationale": "Security condition expected absent/safe for 'N/A'; no finding reported."
+      },
+      {
+        "proposition_id": "PROP-SECRET-004",
+        "case_id": "SECRET-004",
+        "category": "secrets",
+        "endpoint": "N/A",
+        "method": "N/A",
+        "spec_outcome": "TN",
+        "source_outcome": "FP",
+        "corr_outcome": "TN",
+        "spec_to_corr": "TN_TO_TN",
+        "source_to_corr": "FP_TO_TN",
+        "effect_type": "FP_REMOVED",
+        "rationale": "Security condition expected absent/safe for 'N/A'; no finding reported."
+      }
+    ],
+    "spec_to_correlated_summary": {
+      "comparison": "SPEC_ONLY_TO_CORRELATED",
+      "transition_counts": {
+        "TN_TO_TN": 10,
+        "FN_TO_TP": 1,
+        "FP_TO_TN": 3,
+        "TP_TO_TP": 4,
+        "FP_TO_FP": 1,
+        "FN_TO_FN": 3
+      },
+      "propositions_by_transition": {
+        "TN_TO_TN": [
+          "PROP-AUTH-001",
+          "PROP-AUTH-005",
+          "PROP-DATA-001",
+          "PROP-DATA-003",
+          "PROP-DATA-004",
+          "PROP-INPUT-001",
+          "PROP-INPUT-004",
+          "PROP-SECRET-002",
+          "PROP-SECRET-003",
+          "PROP-SECRET-004"
+        ],
+        "FN_TO_TP": [
+          "PROP-AUTH-002"
+        ],
+        "FP_TO_TN": [
+          "PROP-AUTH-003",
+          "PROP-AUTH-004",
+          "PROP-AUTHZ-001"
+        ],
+        "TP_TO_TP": [
+          "PROP-AUTHZ-002",
+          "PROP-AUTHZ-004",
+          "PROP-AUTHZ-005",
+          "PROP-DATA-002"
+        ],
+        "FP_TO_FP": [
+          "PROP-AUTHZ-003"
+        ],
+        "FN_TO_FN": [
+          "PROP-INPUT-002",
+          "PROP-INPUT-003",
+          "PROP-SECRET-001"
+        ]
+      }
+    },
+    "source_to_correlated_summary": {
+      "comparison": "SOURCE_ONLY_TO_CORRELATED",
+      "transition_counts": {
+        "TN_TO_TN": 10,
+        "TP_TO_TP": 4,
+        "FP_TO_TN": 3,
+        "FP_TO_FP": 1,
+        "FN_TO_TP": 1,
+        "FN_TO_FN": 2,
+        "TP_TO_FN": 1
+      },
+      "propositions_by_transition": {
+        "TN_TO_TN": [
+          "PROP-AUTH-001",
+          "PROP-AUTH-005",
+          "PROP-AUTHZ-001",
+          "PROP-DATA-001",
+          "PROP-DATA-003",
+          "PROP-DATA-004",
+          "PROP-INPUT-001",
+          "PROP-INPUT-004",
+          "PROP-SECRET-002",
+          "PROP-SECRET-003"
+        ],
+        "TP_TO_TP": [
+          "PROP-AUTH-002",
+          "PROP-AUTHZ-002",
+          "PROP-AUTHZ-004",
+          "PROP-AUTHZ-005"
+        ],
+        "FP_TO_TN": [
+          "PROP-AUTH-003",
+          "PROP-AUTH-004",
+          "PROP-SECRET-004"
+        ],
+        "FP_TO_FP": [
+          "PROP-AUTHZ-003"
+        ],
+        "FN_TO_TP": [
+          "PROP-DATA-002"
+        ],
+        "FN_TO_FN": [
+          "PROP-INPUT-002",
+          "PROP-INPUT-003"
+        ],
+        "TP_TO_FN": [
+          "PROP-SECRET-001"
+        ]
+      }
+    }
+  },
+  "error_analysis": {
+    "total_errors_analyzed": 19,
+    "error_category_counts_by_mode": {
+      "SPEC_ONLY": {
+        "SPECIFICATION": 8
+      },
+      "SOURCE_ONLY": {
+        "SOURCE": 7
+      },
+      "CORRELATED": {
+        "CORRELATION": 3,
+        "SOURCE_INTRINSIC_NON_ENDPOINT": 1
+      }
+    },
+    "error_details": [
+      {
+        "case_id": "AUTH-002",
+        "proposition_id": "PROP-AUTH-002",
+        "category": "authentication",
+        "mode": "SPEC_ONLY",
+        "outcome": "FN",
+        "error_source_category": "SPECIFICATION",
+        "rationale": "Specification-only analysis lacks source code execution context for PROP-AUTH-002 (missing_authentication)."
+      },
+      {
+        "case_id": "AUTH-003",
+        "proposition_id": "PROP-AUTH-003",
+        "category": "authentication",
+        "mode": "SPEC_ONLY",
+        "outcome": "FP",
+        "error_source_category": "SPECIFICATION",
+        "rationale": "Specification-only analysis lacks source code execution context for PROP-AUTH-003 (missing_authentication)."
+      },
+      {
+        "case_id": "AUTH-004",
+        "proposition_id": "PROP-AUTH-004",
+        "category": "authentication",
+        "mode": "SPEC_ONLY",
+        "outcome": "FP",
+        "error_source_category": "SPECIFICATION",
+        "rationale": "Specification-only analysis lacks source code execution context for PROP-AUTH-004 (missing_authentication)."
+      },
+      {
+        "case_id": "AUTHZ-001",
+        "proposition_id": "PROP-AUTHZ-001",
+        "category": "authorization",
+        "mode": "SPEC_ONLY",
+        "outcome": "FP",
+        "error_source_category": "SPECIFICATION",
+        "rationale": "Specification-only analysis lacks source code execution context for PROP-AUTHZ-001 (missing_object_level_authorization)."
+      },
+      {
+        "case_id": "AUTHZ-003",
+        "proposition_id": "PROP-AUTHZ-003",
+        "category": "authorization",
+        "mode": "SPEC_ONLY",
+        "outcome": "FP",
+        "error_source_category": "SPECIFICATION",
+        "rationale": "Specification-only analysis lacks source code execution context for PROP-AUTHZ-003 (missing_object_level_authorization)."
+      },
+      {
+        "case_id": "INPUT-002",
+        "proposition_id": "PROP-INPUT-002",
+        "category": "input_validation",
+        "mode": "SPEC_ONLY",
+        "outcome": "FN",
+        "error_source_category": "SPECIFICATION",
+        "rationale": "Specification-only analysis lacks source code execution context for PROP-INPUT-002 (unconstrained_input)."
+      },
+      {
+        "case_id": "INPUT-003",
+        "proposition_id": "PROP-INPUT-003",
+        "category": "input_validation",
+        "mode": "SPEC_ONLY",
+        "outcome": "FN",
+        "error_source_category": "SPECIFICATION",
+        "rationale": "Specification-only analysis lacks source code execution context for PROP-INPUT-003 (unconstrained_input)."
+      },
+      {
+        "case_id": "SECRET-001",
+        "proposition_id": "PROP-SECRET-001",
+        "category": "secrets",
+        "mode": "SPEC_ONLY",
+        "outcome": "FN",
+        "error_source_category": "SPECIFICATION",
+        "rationale": "Specification-only analysis lacks source code execution context for PROP-SECRET-001 (hardcoded_secret)."
+      },
+      {
+        "case_id": "AUTH-003",
+        "proposition_id": "PROP-AUTH-003",
+        "category": "authentication",
+        "mode": "SOURCE_ONLY",
+        "outcome": "FP",
+        "error_source_category": "SOURCE",
+        "rationale": "Source static analysis lacks OpenAPI specification contract context for PROP-AUTH-003 (missing_authentication)."
+      },
+      {
+        "case_id": "AUTH-004",
+        "proposition_id": "PROP-AUTH-004",
+        "category": "authentication",
+        "mode": "SOURCE_ONLY",
+        "outcome": "FP",
+        "error_source_category": "SOURCE",
+        "rationale": "Source static analysis lacks OpenAPI specification contract context for PROP-AUTH-004 (missing_authentication)."
+      },
+      {
+        "case_id": "AUTHZ-003",
+        "proposition_id": "PROP-AUTHZ-003",
+        "category": "authorization",
+        "mode": "SOURCE_ONLY",
+        "outcome": "FP",
+        "error_source_category": "SOURCE",
+        "rationale": "Source static analysis lacks OpenAPI specification contract context for PROP-AUTHZ-003 (missing_object_level_authorization)."
+      },
+      {
+        "case_id": "INPUT-002",
+        "proposition_id": "PROP-INPUT-002",
+        "category": "input_validation",
+        "mode": "SOURCE_ONLY",
+        "outcome": "FN",
+        "error_source_category": "SOURCE",
+        "rationale": "Source static analysis lacks OpenAPI specification contract context for PROP-INPUT-002 (unconstrained_input)."
+      },
+      {
+        "case_id": "INPUT-003",
+        "proposition_id": "PROP-INPUT-003",
+        "category": "input_validation",
+        "mode": "SOURCE_ONLY",
+        "outcome": "FN",
+        "error_source_category": "SOURCE",
+        "rationale": "Source static analysis lacks OpenAPI specification contract context for PROP-INPUT-003 (unconstrained_input)."
+      },
+      {
+        "case_id": "DATA-002",
+        "proposition_id": "PROP-DATA-002",
+        "category": "sensitive_data",
+        "mode": "SOURCE_ONLY",
+        "outcome": "FN",
+        "error_source_category": "SOURCE",
+        "rationale": "Source static analysis lacks OpenAPI specification contract context for PROP-DATA-002 (sensitive_data_exposure)."
+      },
+      {
+        "case_id": "SECRET-004",
+        "proposition_id": "PROP-SECRET-004",
+        "category": "secrets",
+        "mode": "SOURCE_ONLY",
+        "outcome": "FP",
+        "error_source_category": "SOURCE",
+        "rationale": "Source static analysis lacks OpenAPI specification contract context for PROP-SECRET-004 (hardcoded_secret)."
+      },
+      {
+        "case_id": "AUTHZ-003",
+        "proposition_id": "PROP-AUTHZ-003",
+        "category": "authorization",
+        "mode": "CORRELATED",
+        "outcome": "FP",
+        "error_source_category": "CORRELATION",
+        "rationale": "Correlation engine emitted unrefuted false positive for PROP-AUTHZ-003."
+      },
+      {
+        "case_id": "INPUT-002",
+        "proposition_id": "PROP-INPUT-002",
+        "category": "input_validation",
+        "mode": "CORRELATED",
+        "outcome": "FN",
+        "error_source_category": "CORRELATION",
+        "rationale": "Correlation engine rule heuristic did not match for PROP-INPUT-002."
+      },
+      {
+        "case_id": "INPUT-003",
+        "proposition_id": "PROP-INPUT-003",
+        "category": "input_validation",
+        "mode": "CORRELATED",
+        "outcome": "FN",
+        "error_source_category": "CORRELATION",
+        "rationale": "Correlation engine rule heuristic did not match for PROP-INPUT-003."
+      },
+      {
+        "case_id": "SECRET-001",
+        "proposition_id": "PROP-SECRET-001",
+        "category": "secrets",
+        "mode": "CORRELATED",
+        "outcome": "FN",
+        "error_source_category": "SOURCE_INTRINSIC_NON_ENDPOINT",
+        "rationale": "Hardcoded source secret without OpenAPI counterpart. Non-endpoint finding intentionally excluded from cross-layer correlation pipeline; not a correlation engine defect."
+      }
+    ]
+  },
+  "limitations": [
+    "Benchmark contains 24 total benchmark cases and 22 Dimension-A security propositions.",
+    "Dimension-A propositions are evaluated against a controlled, synthetic benchmark dataset.",
+    "Confidence intervals (95% Wilson score and bootstrap percentile) reflect small-sample uncertainty bounds (N=22).",
+    "Experimental metrics and precision/recall tradeoffs should not be extrapolated to arbitrary commercial REST APIs without broader sampling.",
+    "The CORRELATED layer is a cross-layer evidence synthesis layer, not a cumulative union of all single-layer findings.",
+    "Source-intrinsic non-endpoint findings (e.g., standalone hardcoded secrets without OpenAPI counterparts) remain absent from CORRELATED findings by design.",
+    "Ground-truth declarations govern classification metrics and error taxonomy assignments."
+  ]
+}

@@ -1,3 +1,4 @@
+import argparse
 from pathlib import Path
 
 from app.evaluation.reporter import generate_html_report, generate_json_artifacts
@@ -5,14 +6,45 @@ from app.evaluation.runner import run_evaluation_experiment
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Execute Intelligent API Security Analyzer Research Evaluation (Phase 6)"
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("evaluation/reports"),
+        help="Directory where generated JSON and HTML evaluation reports are saved",
+    )
+    parser.add_argument(
+        "--phase7-statistics",
+        action="store_true",
+        default=False,
+        help="Generate Phase 7 95%% CIs, mode comparisons, and error taxonomy artifacts",
+    )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--deterministic",
+        action="store_true",
+        default=True,
+        help="Generate deterministic report metadata matching published baseline (default)",
+    )
+    group.add_argument(
+        "--dynamic",
+        action="store_false",
+        dest="deterministic",
+        help="Generate fresh dynamic UUID and execution timestamp for new experimental run",
+    )
+
+    args = parser.parse_args()
+
     print("==========================================================================")
     print("        INTELLIGENT API SECURITY ANALYZER — PHASE 6 EVALUATION          ")
     print("==========================================================================")
     print("Executing frozen Phase 1-5 analyzer across 24 benchmark cases in 3 modes...\n")
 
-    report_data = run_evaluation_experiment()
+    report_data = run_evaluation_experiment(deterministic=args.deterministic)
 
-    reports_dir = Path("evaluation/reports")
+    reports_dir = args.output_dir
     generate_json_artifacts(report_data, reports_dir)
     html_file = generate_html_report(report_data, reports_dir)
 
@@ -66,6 +98,33 @@ def main() -> None:
     print(f"\nEvaluation reports saved to: {reports_dir.resolve()}")
     print(f"HTML Report: {html_file.resolve()}")
     print("==========================================================================\n")
+
+    if args.phase7_statistics:
+        from app.evaluation.reporter import generate_phase7_artifacts, generate_phase7_html_report
+        from app.evaluation.statistics import run_phase7_statistical_analysis
+
+        print("Executing Phase 7 Statistical Analysis & Confidence Interval Generation...")
+        stats_result = run_phase7_statistical_analysis(report_data)
+        p7_dir = reports_dir / "phase7" if reports_dir.name != "phase7" else reports_dir
+        generate_phase7_artifacts(stats_result, p7_dir)
+        p7_html = generate_phase7_html_report(stats_result, p7_dir)
+
+        print("\n--------------------------------------------------------------------------")
+        print("PHASE 7 STATISTICAL ANALYSIS & CONFIDENCE INTERVALS (95% CI)")
+        print("--------------------------------------------------------------------------")
+        for ci in stats_result.confidence_intervals:
+            m_name = ci["metric"]
+            mode = ci["mode"]
+            est = f"{ci['estimate']:.4f}" if ci["estimate"] is not None else "N/A"
+            low = f"{ci['lower']:.4f}" if ci["lower"] is not None else "N/A"
+            up = f"{ci['upper']:.4f}" if ci["upper"] is not None else "N/A"
+            method = ci["method"]
+            print(f"{mode:<12} | {m_name:<36} | {est:<8} | [{low}, {up}] ({method})")
+
+        print("--------------------------------------------------------------------------")
+        print(f"Phase 7 artifacts generated in: {p7_dir.resolve()}")
+        print(f"Phase 7 HTML Report: {p7_html.resolve()}")
+        print("==========================================================================\n")
 
 
 if __name__ == "__main__":

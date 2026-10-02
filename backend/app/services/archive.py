@@ -2,37 +2,72 @@ import os
 import zipfile
 from pathlib import Path
 
-MAX_SPEC_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
-MAX_ARCHIVE_SIZE_BYTES = 25 * 1024 * 1024  # 25 MB
-MAX_UNCOMPRESSED_TOTAL_BYTES = 50 * 1024 * 1024  # 50 MB
-MAX_FILE_COUNT = 2000
-MAX_INDIVIDUAL_FILE_BYTES = 1 * 1024 * 1024  # 1 MB
+from app.core.config import settings
 
 ALLOWED_SPEC_EXTENSIONS = {".yaml", ".yml", ".json"}
 ALLOWED_ARCHIVE_EXTENSIONS = {".zip"}
 
+_DECOMPRESSION_CHUNK_BYTES = 64 * 1024
 
-def validate_spec_upload(filename: str, content_bytes: bytes) -> None:
-    """Validate spec file size and extension."""
+
+def validate_spec_upload(
+    filename: str,
+    content_bytes: bytes,
+    max_size_bytes: int | None = None,
+) -> None:
+    """Validate spec file size and extension against authoritative configuration."""
+    limit = max_size_bytes if max_size_bytes is not None else settings.max_spec_bytes
     ext = Path(filename).suffix.lower()
     if ext not in ALLOWED_SPEC_EXTENSIONS:
         raise ValueError(
             f"UNTRUSTED_ARCHIVE_REJECTED: Invalid spec extension '{ext}'. "
             f"Must be one of {ALLOWED_SPEC_EXTENSIONS}"
         )
-    if len(content_bytes) > MAX_SPEC_SIZE_BYTES:
+    if len(content_bytes) > limit:
         raise ValueError(
             f"UNTRUSTED_ARCHIVE_REJECTED: OpenAPI spec size ({len(content_bytes)} B) "
-            f"exceeds maximum limit of {MAX_SPEC_SIZE_BYTES} B (5 MB)."
+            f"exceeds maximum limit of {limit} B."
         )
 
 
-def extract_source_archive(archive_bytes: bytes, dest_dir: Path) -> int:
+def validate_source_archive_filename(filename: str) -> None:
+    """Reject source uploads whose declared format is not explicitly supported."""
+    ext = Path(filename).suffix.lower()
+    if ext not in ALLOWED_ARCHIVE_EXTENSIONS:
+        raise ValueError(
+            f"UNTRUSTED_ARCHIVE_REJECTED: Invalid source archive extension '{ext}'. "
+            f"Must be one of {ALLOWED_ARCHIVE_EXTENSIONS}"
+        )
+
+
+def extract_source_archive(
+    archive_bytes: bytes,
+    dest_dir: Path,
+    max_archive_size_bytes: int | None = None,
+    max_uncompressed_total_bytes: int | None = None,
+    max_file_count: int | None = None,
+    max_individual_file_bytes: int | None = None,
+) -> int:
     """Safely extract ZIP archive enforcing Zip Slip prevention, size, and file count limits."""
-    if len(archive_bytes) > MAX_ARCHIVE_SIZE_BYTES:
+    max_archive = (
+        max_archive_size_bytes if max_archive_size_bytes is not None else settings.max_archive_bytes
+    )
+    max_uncompressed = (
+        max_uncompressed_total_bytes
+        if max_uncompressed_total_bytes is not None
+        else settings.max_uncompressed_bytes
+    )
+    max_files = max_file_count if max_file_count is not None else settings.max_files_per_scan
+    max_single_file = (
+        max_individual_file_bytes
+        if max_individual_file_bytes is not None
+        else settings.max_individual_file_bytes
+    )
+
+    if len(archive_bytes) > max_archive:
         raise ValueError(
             f"UNTRUSTED_ARCHIVE_REJECTED: Source archive size ({len(archive_bytes)} B) "
-            f"exceeds maximum allowed size of {MAX_ARCHIVE_SIZE_BYTES} B (25 MB)."
+            f"exceeds maximum allowed size of {max_archive} B."
         )
 
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -51,33 +86,34 @@ def extract_source_archive(archive_bytes: bytes, dest_dir: Path) -> int:
         with zipfile.ZipFile(temp_zip_path, "r") as zf:
             infolist = zf.infolist()
 
-            if len(infolist) > MAX_FILE_COUNT:
+            if len(infolist) > max_files:
                 raise ValueError(
                     f"UNTRUSTED_ARCHIVE_REJECTED: Archive file count ({len(infolist)}) "
-                    f"exceeds maximum limit of {MAX_FILE_COUNT} files."
+                    f"exceeds maximum limit of {max_files} files."
                 )
 
             total_uncompressed_bytes = 0
+            actual_total_uncompressed = 0
 
             for member in infolist:
                 mode = member.external_attr >> 16
                 if mode & 0o120000 == 0o120000:
                     raise ValueError(
-                        f"UNTRUSTED_ARCHIVE_REJECTED: Symlink detected in "
-                        f"entry '{member.filename}'."
+                        f"UNTRUSTED_ARCHIVE_REJECTED: Symlink detected in '{member.filename}'."
                     )
 
-                if member.file_size > MAX_INDIVIDUAL_FILE_BYTES:
+                # Header-level preliminary check
+                if member.file_size > max_single_file:
                     raise ValueError(
                         f"UNTRUSTED_ARCHIVE_REJECTED: Individual file '{member.filename}' "
-                        f"exceeds limit of {MAX_INDIVIDUAL_FILE_BYTES} B (1 MB)."
+                        f"exceeds limit of {max_single_file} B."
                     )
 
                 total_uncompressed_bytes += member.file_size
-                if total_uncompressed_bytes > MAX_UNCOMPRESSED_TOTAL_BYTES:
+                if total_uncompressed_bytes > max_uncompressed:
                     raise ValueError(
                         f"UNTRUSTED_ARCHIVE_REJECTED: Cumulative uncompressed archive size "
-                        f"exceeds maximum limit of {MAX_UNCOMPRESSED_TOTAL_BYTES} B (50 MB)."
+                        f"exceeds maximum limit of {max_uncompressed} B."
                     )
 
                 # Zip Slip Prevention Check
@@ -90,13 +126,28 @@ def extract_source_archive(archive_bytes: bytes, dest_dir: Path) -> int:
                         f"'{member.filename}'."
                     ) from exc
 
-                # Safe extraction
+                # Safe extraction with chunked decompression guarding against decompression bombs
                 if member.is_dir():
                     target_path.mkdir(parents=True, exist_ok=True)
                 else:
                     target_path.parent.mkdir(parents=True, exist_ok=True)
+                    member_extracted_bytes = 0
                     with zf.open(member) as source, open(target_path, "wb") as target:
-                        target.write(source.read())
+                        while chunk := source.read(_DECOMPRESSION_CHUNK_BYTES):
+                            member_extracted_bytes += len(chunk)
+                            actual_total_uncompressed += len(chunk)
+                            if member_extracted_bytes > max_single_file:
+                                msg = (
+                                    "UNTRUSTED_ARCHIVE_REJECTED: Individual file "
+                                    f"'{member.filename}' exceeds limit of {max_single_file} B."
+                                )
+                                raise ValueError(msg)
+                            if actual_total_uncompressed > max_uncompressed:
+                                raise ValueError(
+                                    "UNTRUSTED_ARCHIVE_REJECTED: Cumulative uncompressed archive "
+                                    f"size exceeds maximum limit of {max_uncompressed} B."
+                                )
+                            target.write(chunk)
 
             return len(infolist)
     finally:

@@ -1,5 +1,13 @@
 import uuid
+from collections.abc import AsyncIterator
 
+from app.core.config import settings
+from app.core.security import (
+    ClientIdentity,
+    get_current_client,
+    require_api_access_token,
+    verify_scan_access,
+)
 from app.db.session import get_db
 from app.repositories.scan import ScanRepository
 from app.schemas.scan import (
@@ -10,23 +18,83 @@ from app.schemas.scan import (
 )
 from app.services.report import ReportService
 from app.services.scan_service import ScanService
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from sqlalchemy.orm import Session
 
-router = APIRouter(prefix="/scans", tags=["scans"])
+router = APIRouter(
+    prefix="/scans",
+    tags=["scans"],
+    dependencies=[Depends(require_api_access_token)],
+)
+
+_UPLOAD_CHUNK_BYTES = 64 * 1024
+
+
+async def _iter_upload_chunks(upload: UploadFile) -> AsyncIterator[bytes]:
+    while chunk := await upload.read(_UPLOAD_CHUNK_BYTES):
+        yield chunk
+
+
+async def _read_upload_with_limit(upload: UploadFile, max_bytes: int, label: str) -> bytes:
+    """Read a multipart part incrementally and abort before materializing an oversized body."""
+    content = bytearray()
+    async for chunk in _iter_upload_chunks(upload):
+        if len(content) + len(chunk) > max_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                detail=f"{label} exceeds the configured upload limit of {max_bytes} bytes.",
+            )
+        content.extend(chunk)
+    return bytes(content)
 
 
 @router.post("", status_code=status.HTTP_202_ACCEPTED, response_model=ScanCreateResponse)
 async def create_scan(
+    request: Request,
     openapi_file: UploadFile = File(...),
     source_archive: UploadFile = File(...),
     project_name: str = Form("API Security Analysis Project"),
+    client: ClientIdentity = Depends(get_current_client),
     db: Session = Depends(get_db),
 ) -> ScanCreateResponse:
     """Upload an OpenAPI specification file and source code ZIP archive to submit a scan."""
-    spec_bytes = await openapi_file.read()
-    source_bytes = await source_archive.read()
+    # Pre-flight check on declared Content-Length
+    content_length_header = request.headers.get("content-length")
+    if content_length_header:
+        try:
+            content_length = int(content_length_header)
+            if content_length > settings.max_upload_bytes:
+                raise HTTPException(
+                    status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                    detail=(
+                        f"Request payload ({content_length} bytes) exceeds maximum "
+                        f"upload limit of {settings.max_upload_bytes} bytes."
+                    ),
+                )
+        except ValueError:
+            pass
+
+    spec_bytes = await _read_upload_with_limit(
+        openapi_file,
+        min(settings.max_upload_bytes, settings.max_spec_bytes),
+        "OpenAPI specification",
+    )
+    source_bytes = await _read_upload_with_limit(
+        source_archive,
+        min(settings.max_upload_bytes, settings.max_archive_bytes),
+        "Source archive",
+    )
 
     spec_filename = openapi_file.filename or "openapi.yaml"
     source_filename = source_archive.filename or "source.zip"
@@ -40,11 +108,18 @@ async def create_scan(
             spec_bytes=spec_bytes,
             source_filename=source_filename,
             source_bytes=source_bytes,
+            client_id=client.client_id,
         )
     except ValueError as exc:
+        msg = str(exc)
+        if "CAPACITY_EXCEEDED" in msg or "CONCURRENCY_LIMIT" in msg:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=msg,
+            ) from exc
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
+            detail=msg,
         ) from exc
 
     repo = ScanRepository(db)
@@ -66,6 +141,7 @@ async def create_scan(
 @router.get("/{scan_id}", response_model=ScanResponse)
 def get_scan_status(
     scan_id: uuid.UUID,
+    client: ClientIdentity = Depends(get_current_client),
     db: Session = Depends(get_db),
 ) -> ScanResponse:
     """Retrieve scan status and reproducibility metadata."""
@@ -76,6 +152,8 @@ def get_scan_status(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Scan with ID '{scan_id}' not found",
         )
+
+    verify_scan_access(scan, client)
 
     return ScanResponse(
         scan_id=scan.id,
@@ -98,6 +176,7 @@ def get_scan_status(
 @router.get("/{scan_id}/results", response_model=ScanResultsResponse)
 def get_scan_results(
     scan_id: uuid.UUID,
+    client: ClientIdentity = Depends(get_current_client),
     db: Session = Depends(get_db),
 ) -> ScanResultsResponse:
     """Retrieve high-level MultiLayerAnalysisResult metrics summary and matched endpoints."""
@@ -110,6 +189,8 @@ def get_scan_results(
         )
 
     scan, result = scan_data
+    verify_scan_access(scan, client)
+
     if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -126,6 +207,7 @@ def get_scan_results(
 @router.get("/{scan_id}/findings", response_model=ScanFindingsResponse)
 def get_scan_findings(
     scan_id: uuid.UUID,
+    client: ClientIdentity = Depends(get_current_client),
     db: Session = Depends(get_db),
 ) -> ScanFindingsResponse:
     """Retrieve itemized findings categorized by SPEC_ONLY, SOURCE_ONLY, and CORRELATED layers."""
@@ -138,6 +220,8 @@ def get_scan_findings(
         )
 
     scan, result = scan_data
+    verify_scan_access(scan, client)
+
     if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -156,6 +240,7 @@ def get_scan_findings(
 def get_scan_report(
     scan_id: uuid.UUID,
     format: str = Query("json", pattern="^(json|html)$"),
+    client: ClientIdentity = Depends(get_current_client),
     db: Session = Depends(get_db),
 ) -> Response:
     """Retrieve formatted analysis report in canonical JSON or standalone HTML format."""
@@ -168,6 +253,7 @@ def get_scan_report(
         )
 
     scan, result = scan_data
+    verify_scan_access(scan, client)
 
     if format == "html":
         html_content = ReportService.generate_html_report(scan, result)

@@ -1,0 +1,102 @@
+[
+  {
+    "metric": "precision",
+    "baseline_mode": "SPEC_ONLY",
+    "comparison_mode": "CORRELATED",
+    "baseline_value": 0.5,
+    "comparison_value": 0.8333,
+    "absolute_difference": 0.3333,
+    "statistically_significant": false,
+    "notes": "Absolute difference comparing SPEC_ONLY against CORRELATED mode. Statistical significance is not claimed due to small benchmark sample size (N=22 propositions)."
+  },
+  {
+    "metric": "recall",
+    "baseline_mode": "SPEC_ONLY",
+    "comparison_mode": "CORRELATED",
+    "baseline_value": 0.5,
+    "comparison_value": 0.625,
+    "absolute_difference": 0.125,
+    "statistically_significant": false,
+    "notes": "Absolute difference comparing SPEC_ONLY against CORRELATED mode. Statistical significance is not claimed due to small benchmark sample size (N=22 propositions)."
+  },
+  {
+    "metric": "f1",
+    "baseline_mode": "SPEC_ONLY",
+    "comparison_mode": "CORRELATED",
+    "baseline_value": 0.5,
+    "comparison_value": 0.7143,
+    "absolute_difference": 0.2143,
+    "statistically_significant": false,
+    "notes": "Absolute difference comparing SPEC_ONLY against CORRELATED mode. Statistical significance is not claimed due to small benchmark sample size (N=22 propositions)."
+  },
+  {
+    "metric": "fpr",
+    "baseline_mode": "SPEC_ONLY",
+    "comparison_mode": "CORRELATED",
+    "baseline_value": 0.2857,
+    "comparison_value": 0.0714,
+    "absolute_difference": -0.2143,
+    "statistically_significant": false,
+    "notes": "Absolute difference comparing SPEC_ONLY against CORRELATED mode. Statistical significance is not claimed due to small benchmark sample size (N=22 propositions)."
+  },
+  {
+    "metric": "fnr",
+    "baseline_mode": "SPEC_ONLY",
+    "comparison_mode": "CORRELATED",
+    "baseline_value": 0.5,
+    "comparison_value": 0.375,
+    "absolute_difference": -0.125,
+    "statistically_significant": false,
+    "notes": "Absolute difference comparing SPEC_ONLY against CORRELATED mode. Statistical significance is not claimed due to small benchmark sample size (N=22 propositions)."
+  },
+  {
+    "metric": "precision",
+    "baseline_mode": "SOURCE_ONLY",
+    "comparison_mode": "CORRELATED",
+    "baseline_value": 0.5556,
+    "comparison_value": 0.8333,
+    "absolute_difference": 0.2778,
+    "statistically_significant": false,
+    "notes": "Absolute difference comparing SOURCE_ONLY against CORRELATED mode. Statistical significance is not claimed due to small benchmark sample size (N=22 propositions)."
+  },
+  {
+    "metric": "recall",
+    "baseline_mode": "SOURCE_ONLY",
+    "comparison_mode": "CORRELATED",
+    "baseline_value": 0.625,
+    "comparison_value": 0.625,
+    "absolute_difference": 0.0,
+    "statistically_significant": false,
+    "notes": "Absolute difference comparing SOURCE_ONLY against CORRELATED mode. Statistical significance is not claimed due to small benchmark sample size (N=22 propositions)."
+  },
+  {
+    "metric": "f1",
+    "baseline_mode": "SOURCE_ONLY",
+    "comparison_mode": "CORRELATED",
+    "baseline_value": 0.5882,
+    "comparison_value": 0.7143,
+    "absolute_difference": 0.1261,
+    "statistically_significant": false,
+    "notes": "Absolute difference comparing SOURCE_ONLY against CORRELATED mode. Statistical significance is not claimed due to small benchmark sample size (N=22 propositions)."
+  },
+  {
+    "metric": "fpr",
+    "baseline_mode": "SOURCE_ONLY",
+    "comparison_mode": "CORRELATED",
+    "baseline_value": 0.2857,
+    "comparison_value": 0.0714,
+    "absolute_difference": -0.2143,
+    "statistically_significant": false,
+    "notes": "Absolute difference comparing SOURCE_ONLY against CORRELATED mode. Statistical significance is not claimed due to small benchmark sample size (N=22 propositions)."
+  },
+  {
+    "metric": "fnr",
+    "baseline_mode": "SOURCE_ONLY",
+    "comparison_mode": "CORRELATED",
+    "baseline_value": 0.375,
+    "comparison_value": 0.375,
+    "absolute_difference": 0.0,
+    "statistically_significant": false,
+    "notes": "Absolute difference comparing SOURCE_ONLY against CORRELATED mode. Statistical significance is not claimed due to small benchmark sample size (N=22 propositions)."
+  }
+]

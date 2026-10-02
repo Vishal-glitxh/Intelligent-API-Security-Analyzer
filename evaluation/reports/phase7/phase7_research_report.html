@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Phase 7 Statistical Analysis Report — Intelligent API Security Analyzer</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                margin: 40px; background: #0f172a; color: #f8fafc; line-height: 1.5; }
+        h1, h2, h3 { color: #38bdf8; border-bottom: 1px solid #334155; padding-bottom: 8px; }
+        .meta-card { background: #1e293b; padding: 20px; border-radius: 8px;
+                     margin-bottom: 24px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; background: #1e293b;
+                 border-radius: 8px; overflow: hidden; }
+        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #334155; }
+        th { background: #0f172a; color: #94a3b8; font-size: 13px; text-transform: uppercase; }
+        td.highlight { background: #0369a1; color: #fff; font-weight: bold; }
+        code { background: #0f172a; padding: 2px 6px; border-radius: 4px; color: #38bdf8; }
+        ul { background: #1e293b; padding: 20px 40px; border-radius: 8px; }
+        li { margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+    <h1>Phase 7 Statistical Analysis & Experimental Validation Report</h1>
+
+    <div class="meta-card">
+        <p><strong>Dataset Version:</strong> 6.0.0 (24 Cases)</p>
+        <p><strong>Dimension-A Props:</strong> 22</p>
+        <p><strong>Statistical Methods:</strong> 95% Wilson Score Binomial CIs & 10,000-sample Bootstrap Percentile CIs</p>
+    </div>
+
+    <h2>1. 95% Confidence Intervals Summary</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Mode</th>
+                <th>Metric</th>
+                <th>Observed Point Estimate</th>
+                <th>95% Confidence Interval</th>
+                <th>Method & Sample Size</th>
+            </tr>
+        </thead>
+        <tbody>
+            
+        <tr>
+            <td><code>SPEC_ONLY</code></td>
+            <td><strong>precision</strong></td>
+            <td>0.5000</td>
+            <td class="highlight">[0.2152, 0.7848]</td>
+            <td>wilson_score (N=8)</td>
+        </tr>
+        <tr>
+            <td><code>SPEC_ONLY</code></td>
+            <td><strong>recall</strong></td>
+            <td>0.5000</td>
+            <td class="highlight">[0.2152, 0.7848]</td>
+            <td>wilson_score (N=8)</td>
+        </tr>
+        <tr>
+            <td><code>SPEC_ONLY</code></td>
+            <td><strong>fpr</strong></td>
+            <td>0.2857</td>
+            <td class="highlight">[0.1172, 0.5465]</td>
+            <td>wilson_score (N=14)</td>
+        </tr>
+        <tr>
+            <td><code>SPEC_ONLY</code></td>
+            <td><strong>fnr</strong></td>
+            <td>0.5000</td>
+            <td class="highlight">[0.2152, 0.7848]</td>
+            <td>wilson_score (N=8)</td>
+        </tr>
+        <tr>
+            <td><code>SPEC_ONLY</code></td>
+            <td><strong>f1</strong></td>
+            <td>0.5000</td>
+            <td class="highlight">[0.1667, 0.7692]</td>
+            <td>bootstrap_percentile (N=22)</td>
+        </tr>
+        <tr>
+            <td><code>SOURCE_ONLY</code></td>
+            <td><strong>precision</strong></td>
+            <td>0.5556</td>
+            <td class="highlight">[0.2667, 0.8112]</td>
+            <td>wilson_score (N=9)</td>
+        </tr>
+        <tr>
+            <td><code>SOURCE_ONLY</code></td>
+            <td><strong>recall</strong></td>
+            <td>0.6250</td>
+            <td class="highlight">[0.3057, 0.8632]</td>
+            <td>wilson_score (N=8)</td>
+        </tr>
+        <tr>
+            <td><code>SOURCE_ONLY</code></td>
+            <td><strong>fpr</strong></td>
+            <td>0.2857</td>
+            <td class="highlight">[0.1172, 0.5465]</td>
+            <td>wilson_score (N=14)</td>
+        </tr>
+        <tr>
+            <td><code>SOURCE_ONLY</code></td>
+            <td><strong>fnr</strong></td>
+            <td>0.3750</td>
+            <td class="highlight">[0.1368, 0.6943]</td>
+            <td>wilson_score (N=8)</td>
+        </tr>
+        <tr>
+            <td><code>SOURCE_ONLY</code></td>
+            <td><strong>f1</strong></td>
+            <td>0.5882</td>
+            <td class="highlight">[0.2667, 0.8333]</td>
+            <td>bootstrap_percentile (N=22)</td>
+        </tr>
+        <tr>
+            <td><code>CORRELATED</code></td>
+            <td><strong>precision</strong></td>
+            <td>0.8333</td>
+            <td class="highlight">[0.4365, 0.9699]</td>
+            <td>wilson_score (N=6)</td>
+        </tr>
+        <tr>
+            <td><code>CORRELATED</code></td>
+            <td><strong>recall</strong></td>
+            <td>0.6250</td>
+            <td class="highlight">[0.3057, 0.8632]</td>
+            <td>wilson_score (N=8)</td>
+        </tr>
+        <tr>
+            <td><code>CORRELATED</code></td>
+            <td><strong>fpr</strong></td>
+            <td>0.0714</td>
+            <td class="highlight">[0.0127, 0.3147]</td>
+            <td>wilson_score (N=14)</td>
+        </tr>
+        <tr>
+            <td><code>CORRELATED</code></td>
+            <td><strong>fnr</strong></td>
+            <td>0.3750</td>
+            <td class="highlight">[0.1368, 0.6943]</td>
+            <td>wilson_score (N=8)</td>
+        </tr>
+        <tr>
+            <td><code>CORRELATED</code></td>
+            <td><strong>f1</strong></td>
+            <td>0.7143</td>
+            <td class="highlight">[0.3636, 0.9333]</td>
+            <td>bootstrap_percentile (N=22)</td>
+        </tr>
+        <tr>
+            <td><code>CORRELATED</code></td>
+            <td><strong>dimension_b_correlation_accuracy</strong></td>
+            <td>1.0000</td>
+            <td class="highlight">[0.2065, 1.0000]</td>
+            <td>wilson_score (N=1)</td>
+        </tr>
+        <tr>
+            <td><code>CORRELATED</code></td>
+            <td><strong>dimension_c_endpoint_match_accuracy</strong></td>
+            <td>1.0000</td>
+            <td class="highlight">[0.5101, 1.0000]</td>
+            <td>wilson_score (N=4)</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <h2>2. Mode-to-Mode Comparative Analysis</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Metric</th>
+                <th>Comparison</th>
+                <th>Baseline Value</th>
+                <th>CORRELATED Value</th>
+                <th>Absolute Difference</th>
+            </tr>
+        </thead>
+        <tbody>
+            
+        <tr>
+            <td><strong>precision</strong></td>
+            <td><code>SPEC_ONLY</code> vs <code>CORRELATED</code></td>
+            <td>0.5000</td>
+            <td>0.8333</td>
+            <td class="highlight">+0.3333</td>
+        </tr>
+        <tr>
+            <td><strong>recall</strong></td>
+            <td><code>SPEC_ONLY</code> vs <code>CORRELATED</code></td>
+            <td>0.5000</td>
+            <td>0.6250</td>
+            <td class="highlight">+0.1250</td>
+        </tr>
+        <tr>
+            <td><strong>f1</strong></td>
+            <td><code>SPEC_ONLY</code> vs <code>CORRELATED</code></td>
+            <td>0.5000</td>
+            <td>0.7143</td>
+            <td class="highlight">+0.2143</td>
+        </tr>
+        <tr>
+            <td><strong>fpr</strong></td>
+            <td><code>SPEC_ONLY</code> vs <code>CORRELATED</code></td>
+            <td>0.2857</td>
+            <td>0.0714</td>
+            <td class="highlight">-0.2143</td>
+        </tr>
+        <tr>
+            <td><strong>fnr</strong></td>
+            <td><code>SPEC_ONLY</code> vs <code>CORRELATED</code></td>
+            <td>0.5000</td>
+            <td>0.3750</td>
+            <td class="highlight">-0.1250</td>
+        </tr>
+        <tr>
+            <td><strong>precision</strong></td>
+            <td><code>SOURCE_ONLY</code> vs <code>CORRELATED</code></td>
+            <td>0.5556</td>
+            <td>0.8333</td>
+            <td class="highlight">+0.2778</td>
+        </tr>
+        <tr>
+            <td><strong>recall</strong></td>
+            <td><code>SOURCE_ONLY</code> vs <code>CORRELATED</code></td>
+            <td>0.6250</td>
+            <td>0.6250</td>
+            <td class="highlight">+0.0000</td>
+        </tr>
+        <tr>
+            <td><strong>f1</strong></td>
+            <td><code>SOURCE_ONLY</code> vs <code>CORRELATED</code></td>
+            <td>0.5882</td>
+            <td>0.7143</td>
+            <td class="highlight">+0.1261</td>
+        </tr>
+        <tr>
+            <td><strong>fpr</strong></td>
+            <td><code>SOURCE_ONLY</code> vs <code>CORRELATED</code></td>
+            <td>0.2857</td>
+            <td>0.0714</td>
+            <td class="highlight">-0.2143</td>
+        </tr>
+        <tr>
+            <td><strong>fnr</strong></td>
+            <td><code>SOURCE_ONLY</code> vs <code>CORRELATED</code></td>
+            <td>0.3750</td>
+            <td>0.3750</td>
+            <td class="highlight">+0.0000</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <h2>3. Methodological Research Limitations</h2>
+    <ul>
+        <li>Benchmark contains 24 total benchmark cases and 22 Dimension-A security propositions.</li><li>Dimension-A propositions are evaluated against a controlled, synthetic benchmark dataset.</li><li>Confidence intervals (95% Wilson score and bootstrap percentile) reflect small-sample uncertainty bounds (N=22).</li><li>Experimental metrics and precision/recall tradeoffs should not be extrapolated to arbitrary commercial REST APIs without broader sampling.</li><li>The CORRELATED layer is a cross-layer evidence synthesis layer, not a cumulative union of all single-layer findings.</li><li>Source-intrinsic non-endpoint findings (e.g., standalone hardcoded secrets without OpenAPI counterparts) remain absent from CORRELATED findings by design.</li><li>Ground-truth declarations govern classification metrics and error taxonomy assignments.</li>
+    </ul>
+</body>
+</html>

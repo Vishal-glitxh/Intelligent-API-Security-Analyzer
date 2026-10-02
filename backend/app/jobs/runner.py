@@ -30,14 +30,38 @@ class JobResult[R]:
     completed_at: datetime | None = None
 
 
+def _apply_memory_limit(max_memory_bytes: int | None) -> None:
+    """Apply a best-effort address-space ceiling in the isolated child process.
+
+    ``resource`` is only available on POSIX systems.  The application timeout remains the
+    cross-platform CPU bound; production container limits should be configured as a second
+    enforcement layer.
+    """
+    if max_memory_bytes is None:
+        return
+    try:
+        import resource
+
+        soft, hard = resource.getrlimit(resource.RLIMIT_AS)
+        target_hard = hard if hard != resource.RLIM_INFINITY else max_memory_bytes
+        target_soft = min(max_memory_bytes, target_hard)
+        resource.setrlimit(resource.RLIMIT_AS, (target_soft, target_hard))
+    except ImportError, OSError, ValueError:
+        # Unsupported platforms and hosts with restrictive ulimit policies still retain the
+        # parent-side timeout and deployment-level container limits.
+        return
+
+
 def _process_worker_entrypoint(
     job_id: str,
     func: Callable[[Any], Any],
     input_data: Any,
+    max_memory_bytes: int | None,
 ) -> JobResult[Any]:
     """Top-level picklable entrypoint executed inside the worker process."""
     started_at = datetime.now(UTC)
     try:
+        _apply_memory_limit(max_memory_bytes)
         output = func(input_data)
         completed_at = datetime.now(UTC)
         return JobResult(
@@ -86,8 +110,9 @@ class JobRunner(ABC):
 class LocalProcessJobRunner(JobRunner):
     """Executes CPU-bound analysis jobs in isolated OS processes using a process pool."""
 
-    def __init__(self, max_workers: int = 2) -> None:
+    def __init__(self, max_workers: int = 2, max_memory_bytes: int | None = None) -> None:
         self._executor = ProcessPoolExecutor(max_workers=max_workers)
+        self._max_memory_bytes = max_memory_bytes
 
     def submit(
         self,
@@ -95,7 +120,13 @@ class LocalProcessJobRunner(JobRunner):
         func: Callable[[Any], Any],
         input_data: Any,
     ) -> Future[JobResult[Any]]:
-        return self._executor.submit(_process_worker_entrypoint, job_id, func, input_data)
+        return self._executor.submit(
+            _process_worker_entrypoint,
+            job_id,
+            func,
+            input_data,
+            self._max_memory_bytes,
+        )
 
     def run(
         self,

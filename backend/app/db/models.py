@@ -43,6 +43,7 @@ class Scan(Base):
     engine_version: Mapped[str] = mapped_column(String(50), nullable=False, default="0.1.0")
     rule_set_version: Mapped[str] = mapped_column(String(50), nullable=False, default="0.1.0")
     config_version: Mapped[str] = mapped_column(String(50), nullable=False, default="1.0.0")
+    client_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(

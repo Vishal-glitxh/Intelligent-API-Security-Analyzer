@@ -168,9 +168,18 @@ def evaluate_mode(
 def run_evaluation_experiment(
     dataset_dir: Path = DEFAULT_DATASET_DIR,
     runs_dir: Path = Path("evaluation/runs"),
+    deterministic: bool = True,
+    experiment_id: str | None = None,
+    execution_timestamp: str | None = None,
 ) -> EvaluationReportData:
     """Execute complete research evaluation pipeline across all 24 benchmark cases in 3 modes."""
-    experiment_id = str(uuid.uuid4())
+    if deterministic:
+        exp_id = experiment_id or "4eb72e4c-2ba5-47c8-ad1b-9d992b709f61"
+        exec_ts = execution_timestamp or "2026-09-20T04:15:55Z"
+    else:
+        exp_id = experiment_id or str(uuid.uuid4())
+        exec_ts = execution_timestamp or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
     dataset = load_dataset(dataset_dir)
     runs_dir = runs_dir.resolve()
 
@@ -191,7 +200,7 @@ def run_evaluation_experiment(
             raw_run_file = mode_dir / f"{case.case_id}.json"
 
             run_payload = {
-                "experiment_id": experiment_id,
+                "experiment_id": exp_id,
                 "case_id": case.case_id,
                 "mode": mode,
                 "spec_hash": spec_hash,
@@ -209,14 +218,14 @@ def run_evaluation_experiment(
         mode_results[mode] = evaluate_mode(mode, dataset, analysis_results)
 
     report_data = EvaluationReportData(
-        experiment_id=experiment_id,
+        experiment_id=exp_id,
         dataset_version="6.0.0",
         analyzer_version="0.1.0",
         rule_set_version="0.1.0",
         config_version="1.0.0",
         python_version=sys.version.split()[0],
         platform_info=f"{platform.system()} {platform.release()} ({platform.machine()})",
-        execution_timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        execution_timestamp=exec_ts,
         mode_results=mode_results,
     )
 

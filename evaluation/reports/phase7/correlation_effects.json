@@ -1,0 +1,410 @@
+{
+  "proposition_count": 22,
+  "records": [
+    {
+      "proposition_id": "PROP-AUTH-001",
+      "case_id": "AUTH-001",
+      "category": "authentication",
+      "endpoint": "/api/v1/profile",
+      "method": "GET",
+      "spec_outcome": "TN",
+      "source_outcome": "TN",
+      "corr_outcome": "TN",
+      "spec_to_corr": "TN_TO_TN",
+      "source_to_corr": "TN_TO_TN",
+      "effect_type": "TN_TO_TN",
+      "rationale": "Security condition expected absent/safe for '/api/v1/profile'; no finding reported."
+    },
+    {
+      "proposition_id": "PROP-AUTH-002",
+      "case_id": "AUTH-002",
+      "category": "authentication",
+      "endpoint": "/api/v1/admin/users",
+      "method": "GET",
+      "spec_outcome": "FN",
+      "source_outcome": "TP",
+      "corr_outcome": "TP",
+      "spec_to_corr": "FN_TO_TP",
+      "source_to_corr": "TP_TO_TP",
+      "effect_type": "FN_REMOVED",
+      "rationale": "Security condition expected present for '/api/v1/admin/users'; matching finding 'CORR-AUTH-001' detected."
+    },
+    {
+      "proposition_id": "PROP-AUTH-003",
+      "case_id": "AUTH-003",
+      "category": "authentication",
+      "endpoint": "/api/v1/health",
+      "method": "GET",
+      "spec_outcome": "FP",
+      "source_outcome": "FP",
+      "corr_outcome": "TN",
+      "spec_to_corr": "FP_TO_TN",
+      "source_to_corr": "FP_TO_TN",
+      "effect_type": "FP_REMOVED",
+      "rationale": "Security condition expected absent/safe for '/api/v1/health'; no finding reported."
+    },
+    {
+      "proposition_id": "PROP-AUTH-004",
+      "case_id": "AUTH-004",
+      "category": "authentication",
+      "endpoint": "/api/v1/public/ping",
+      "method": "GET",
+      "spec_outcome": "FP",
+      "source_outcome": "FP",
+      "corr_outcome": "TN",
+      "spec_to_corr": "FP_TO_TN",
+      "source_to_corr": "FP_TO_TN",
+      "effect_type": "FP_REMOVED",
+      "rationale": "Security condition expected absent/safe for '/api/v1/public/ping'; no finding reported."
+    },
+    {
+      "proposition_id": "PROP-AUTH-005",
+      "case_id": "AUTH-005",
+      "category": "authentication",
+      "endpoint": "/api/v1/secure/data",
+      "method": "GET",
+      "spec_outcome": "TN",
+      "source_outcome": "TN",
+      "corr_outcome": "TN",
+      "spec_to_corr": "TN_TO_TN",
+      "source_to_corr": "TN_TO_TN",
+      "effect_type": "TN_TO_TN",
+      "rationale": "Security condition expected absent/safe for '/api/v1/secure/data'; no finding reported."
+    },
+    {
+      "proposition_id": "PROP-AUTHZ-001",
+      "case_id": "AUTHZ-001",
+      "category": "authorization",
+      "endpoint": "/api/v1/documents/{doc_id}",
+      "method": "GET",
+      "spec_outcome": "FP",
+      "source_outcome": "TN",
+      "corr_outcome": "TN",
+      "spec_to_corr": "FP_TO_TN",
+      "source_to_corr": "TN_TO_TN",
+      "effect_type": "FP_REMOVED",
+      "rationale": "Security condition expected absent/safe for '/api/v1/documents/{doc_id}'; no finding reported."
+    },
+    {
+      "proposition_id": "PROP-AUTHZ-002",
+      "case_id": "AUTHZ-002",
+      "category": "authorization",
+      "endpoint": "/api/v1/accounts/{account_id}",
+      "method": "GET",
+      "spec_outcome": "TP",
+      "source_outcome": "TP",
+      "corr_outcome": "TP",
+      "spec_to_corr": "TP_TO_TP",
+      "source_to_corr": "TP_TO_TP",
+      "effect_type": "TP_TO_TP",
+      "rationale": "Security condition expected present for '/api/v1/accounts/{account_id}'; matching finding 'CORR-AUTHZ-001' detected."
+    },
+    {
+      "proposition_id": "PROP-AUTHZ-003",
+      "case_id": "AUTHZ-003",
+      "category": "authorization",
+      "endpoint": "/api/v1/projects/{project_id}",
+      "method": "GET",
+      "spec_outcome": "FP",
+      "source_outcome": "FP",
+      "corr_outcome": "FP",
+      "spec_to_corr": "FP_TO_FP",
+      "source_to_corr": "FP_TO_FP",
+      "effect_type": "FP_TO_FP",
+      "rationale": "Security condition expected absent/safe for '/api/v1/projects/{project_id}'; finding 'CORR-AUTHZ-001' reported."
+    },
+    {
+      "proposition_id": "PROP-AUTHZ-004",
+      "case_id": "AUTHZ-004",
+      "category": "authorization",
+      "endpoint": "/api/v1/orders/{order_id}",
+      "method": "GET",
+      "spec_outcome": "TP",
+      "source_outcome": "TP",
+      "corr_outcome": "TP",
+      "spec_to_corr": "TP_TO_TP",
+      "source_to_corr": "TP_TO_TP",
+      "effect_type": "TP_TO_TP",
+      "rationale": "Security condition expected present for '/api/v1/orders/{order_id}'; matching finding 'CORR-AUTHZ-001' detected."
+    },
+    {
+      "proposition_id": "PROP-AUTHZ-005",
+      "case_id": "AUTHZ-005",
+      "category": "authorization",
+      "endpoint": "/api/v1/reports/{report_id}",
+      "method": "GET",
+      "spec_outcome": "TP",
+      "source_outcome": "TP",
+      "corr_outcome": "TP",
+      "spec_to_corr": "TP_TO_TP",
+      "source_to_corr": "TP_TO_TP",
+      "effect_type": "TP_TO_TP",
+      "rationale": "Security condition expected present for '/api/v1/reports/{report_id}'; matching finding 'CORR-AUTHZ-001' detected."
+    },
+    {
+      "proposition_id": "PROP-DATA-001",
+      "case_id": "DATA-001",
+      "category": "sensitive_data",
+      "endpoint": "/api/v1/products",
+      "method": "GET",
+      "spec_outcome": "TN",
+      "source_outcome": "TN",
+      "corr_outcome": "TN",
+      "spec_to_corr": "TN_TO_TN",
+      "source_to_corr": "TN_TO_TN",
+      "effect_type": "TN_TO_TN",
+      "rationale": "Security condition expected absent/safe for '/api/v1/products'; no finding reported."
+    },
+    {
+      "proposition_id": "PROP-DATA-002",
+      "case_id": "DATA-002",
+      "category": "sensitive_data",
+      "endpoint": "/api/v1/users/{id}",
+      "method": "GET",
+      "spec_outcome": "TP",
+      "source_outcome": "FN",
+      "corr_outcome": "TP",
+      "spec_to_corr": "TP_TO_TP",
+      "source_to_corr": "FN_TO_TP",
+      "effect_type": "FN_REMOVED",
+      "rationale": "Security condition expected present for '/api/v1/users/{id}'; matching finding 'CORR-DATA-001' detected."
+    },
+    {
+      "proposition_id": "PROP-DATA-003",
+      "case_id": "DATA-003",
+      "category": "sensitive_data",
+      "endpoint": "/api/v1/public_key",
+      "method": "GET",
+      "spec_outcome": "TN",
+      "source_outcome": "TN",
+      "corr_outcome": "TN",
+      "spec_to_corr": "TN_TO_TN",
+      "source_to_corr": "TN_TO_TN",
+      "effect_type": "TN_TO_TN",
+      "rationale": "Security condition expected absent/safe for '/api/v1/public_key'; no finding reported."
+    },
+    {
+      "proposition_id": "PROP-DATA-004",
+      "case_id": "DATA-004",
+      "category": "sensitive_data",
+      "endpoint": "/api/v1/items",
+      "method": "GET",
+      "spec_outcome": "TN",
+      "source_outcome": "TN",
+      "corr_outcome": "TN",
+      "spec_to_corr": "TN_TO_TN",
+      "source_to_corr": "TN_TO_TN",
+      "effect_type": "TN_TO_TN",
+      "rationale": "Security condition expected absent/safe for '/api/v1/items'; no finding reported."
+    },
+    {
+      "proposition_id": "PROP-INPUT-001",
+      "case_id": "INPUT-001",
+      "category": "input_validation",
+      "endpoint": "/api/v1/users",
+      "method": "POST",
+      "spec_outcome": "TN",
+      "source_outcome": "TN",
+      "corr_outcome": "TN",
+      "spec_to_corr": "TN_TO_TN",
+      "source_to_corr": "TN_TO_TN",
+      "effect_type": "TN_TO_TN",
+      "rationale": "Security condition expected absent/safe for '/api/v1/users'; no finding reported."
+    },
+    {
+      "proposition_id": "PROP-INPUT-002",
+      "case_id": "INPUT-002",
+      "category": "input_validation",
+      "endpoint": "/api/v1/search",
+      "method": "POST",
+      "spec_outcome": "FN",
+      "source_outcome": "FN",
+      "corr_outcome": "FN",
+      "spec_to_corr": "FN_TO_FN",
+      "source_to_corr": "FN_TO_FN",
+      "effect_type": "FN_TO_FN",
+      "rationale": "Security condition expected present for '/api/v1/search'; no matching finding detected."
+    },
+    {
+      "proposition_id": "PROP-INPUT-003",
+      "case_id": "INPUT-003",
+      "category": "input_validation",
+      "endpoint": "/api/v1/register",
+      "method": "POST",
+      "spec_outcome": "FN",
+      "source_outcome": "FN",
+      "corr_outcome": "FN",
+      "spec_to_corr": "FN_TO_FN",
+      "source_to_corr": "FN_TO_FN",
+      "effect_type": "FN_TO_FN",
+      "rationale": "Security condition expected present for '/api/v1/register'; no matching finding detected."
+    },
+    {
+      "proposition_id": "PROP-INPUT-004",
+      "case_id": "INPUT-004",
+      "category": "input_validation",
+      "endpoint": "/api/v1/comments",
+      "method": "POST",
+      "spec_outcome": "TN",
+      "source_outcome": "TN",
+      "corr_outcome": "TN",
+      "spec_to_corr": "TN_TO_TN",
+      "source_to_corr": "TN_TO_TN",
+      "effect_type": "TN_TO_TN",
+      "rationale": "Security condition expected absent/safe for '/api/v1/comments'; no finding reported."
+    },
+    {
+      "proposition_id": "PROP-SECRET-001",
+      "case_id": "SECRET-001",
+      "category": "secrets",
+      "endpoint": "N/A",
+      "method": "N/A",
+      "spec_outcome": "FN",
+      "source_outcome": "TP",
+      "corr_outcome": "FN",
+      "spec_to_corr": "FN_TO_FN",
+      "source_to_corr": "TP_TO_FN",
+      "effect_type": "FN_INTRODUCED",
+      "rationale": "Security condition expected present for 'N/A'; no matching finding detected."
+    },
+    {
+      "proposition_id": "PROP-SECRET-002",
+      "case_id": "SECRET-002",
+      "category": "secrets",
+      "endpoint": "N/A",
+      "method": "N/A",
+      "spec_outcome": "TN",
+      "source_outcome": "TN",
+      "corr_outcome": "TN",
+      "spec_to_corr": "TN_TO_TN",
+      "source_to_corr": "TN_TO_TN",
+      "effect_type": "TN_TO_TN",
+      "rationale": "Security condition expected absent/safe for 'N/A'; no finding reported."
+    },
+    {
+      "proposition_id": "PROP-SECRET-003",
+      "case_id": "SECRET-003",
+      "category": "secrets",
+      "endpoint": "N/A",
+      "method": "N/A",
+      "spec_outcome": "TN",
+      "source_outcome": "TN",
+      "corr_outcome": "TN",
+      "spec_to_corr": "TN_TO_TN",
+      "source_to_corr": "TN_TO_TN",
+      "effect_type": "TN_TO_TN",
+      "rationale": "Security condition expected absent/safe for 'N/A'; no finding reported."
+    },
+    {
+      "proposition_id": "PROP-SECRET-004",
+      "case_id": "SECRET-004",
+      "category": "secrets",
+      "endpoint": "N/A",
+      "method": "N/A",
+      "spec_outcome": "TN",
+      "source_outcome": "FP",
+      "corr_outcome": "TN",
+      "spec_to_corr": "TN_TO_TN",
+      "source_to_corr": "FP_TO_TN",
+      "effect_type": "FP_REMOVED",
+      "rationale": "Security condition expected absent/safe for 'N/A'; no finding reported."
+    }
+  ],
+  "spec_to_correlated_summary": {
+    "comparison": "SPEC_ONLY_TO_CORRELATED",
+    "transition_counts": {
+      "TN_TO_TN": 10,
+      "FN_TO_TP": 1,
+      "FP_TO_TN": 3,
+      "TP_TO_TP": 4,
+      "FP_TO_FP": 1,
+      "FN_TO_FN": 3
+    },
+    "propositions_by_transition": {
+      "TN_TO_TN": [
+        "PROP-AUTH-001",
+        "PROP-AUTH-005",
+        "PROP-DATA-001",
+        "PROP-DATA-003",
+        "PROP-DATA-004",
+        "PROP-INPUT-001",
+        "PROP-INPUT-004",
+        "PROP-SECRET-002",
+        "PROP-SECRET-003",
+        "PROP-SECRET-004"
+      ],
+      "FN_TO_TP": [
+        "PROP-AUTH-002"
+      ],
+      "FP_TO_TN": [
+        "PROP-AUTH-003",
+        "PROP-AUTH-004",
+        "PROP-AUTHZ-001"
+      ],
+      "TP_TO_TP": [
+        "PROP-AUTHZ-002",
+        "PROP-AUTHZ-004",
+        "PROP-AUTHZ-005",
+        "PROP-DATA-002"
+      ],
+      "FP_TO_FP": [
+        "PROP-AUTHZ-003"
+      ],
+      "FN_TO_FN": [
+        "PROP-INPUT-002",
+        "PROP-INPUT-003",
+        "PROP-SECRET-001"
+      ]
+    }
+  },
+  "source_to_correlated_summary": {
+    "comparison": "SOURCE_ONLY_TO_CORRELATED",
+    "transition_counts": {
+      "TN_TO_TN": 10,
+      "TP_TO_TP": 4,
+      "FP_TO_TN": 3,
+      "FP_TO_FP": 1,
+      "FN_TO_TP": 1,
+      "FN_TO_FN": 2,
+      "TP_TO_FN": 1
+    },
+    "propositions_by_transition": {
+      "TN_TO_TN": [
+        "PROP-AUTH-001",
+        "PROP-AUTH-005",
+        "PROP-AUTHZ-001",
+        "PROP-DATA-001",
+        "PROP-DATA-003",
+        "PROP-DATA-004",
+        "PROP-INPUT-001",
+        "PROP-INPUT-004",
+        "PROP-SECRET-002",
+        "PROP-SECRET-003"
+      ],
+      "TP_TO_TP": [
+        "PROP-AUTH-002",
+        "PROP-AUTHZ-002",
+        "PROP-AUTHZ-004",
+        "PROP-AUTHZ-005"
+      ],
+      "FP_TO_TN": [
+        "PROP-AUTH-003",
+        "PROP-AUTH-004",
+        "PROP-SECRET-004"
+      ],
+      "FP_TO_FP": [
+        "PROP-AUTHZ-003"
+      ],
+      "FN_TO_TP": [
+        "PROP-DATA-002"
+      ],
+      "FN_TO_FN": [
+        "PROP-INPUT-002",
+        "PROP-INPUT-003"
+      ],
+      "TP_TO_FN": [
+        "PROP-SECRET-001"
+      ]
+    }
+  }
+}

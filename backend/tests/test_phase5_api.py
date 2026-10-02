@@ -1,10 +1,17 @@
 import io
 import zipfile
 
+from app.core.config import settings
 from app.main import app
 from fastapi.testclient import TestClient
 
-client = TestClient(app)
+client = TestClient(app, headers={"X-API-Key": settings.api_access_token or ""})
+
+
+def test_scan_endpoints_require_api_key() -> None:
+    response = TestClient(app).get("/api/v1/scans/00000000-0000-0000-0000-000000000000")
+    assert response.status_code == 401
+
 
 SAMPLE_SPEC_YAML = """openapi: 3.0.3
 info:

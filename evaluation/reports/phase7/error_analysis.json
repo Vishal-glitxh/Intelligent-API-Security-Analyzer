@@ -1,0 +1,188 @@
+{
+  "total_errors_analyzed": 19,
+  "error_category_counts_by_mode": {
+    "SPEC_ONLY": {
+      "SPECIFICATION": 8
+    },
+    "SOURCE_ONLY": {
+      "SOURCE": 7
+    },
+    "CORRELATED": {
+      "CORRELATION": 3,
+      "SOURCE_INTRINSIC_NON_ENDPOINT": 1
+    }
+  },
+  "error_details": [
+    {
+      "case_id": "AUTH-002",
+      "proposition_id": "PROP-AUTH-002",
+      "category": "authentication",
+      "mode": "SPEC_ONLY",
+      "outcome": "FN",
+      "error_source_category": "SPECIFICATION",
+      "rationale": "Specification-only analysis lacks source code execution context for PROP-AUTH-002 (missing_authentication)."
+    },
+    {
+      "case_id": "AUTH-003",
+      "proposition_id": "PROP-AUTH-003",
+      "category": "authentication",
+      "mode": "SPEC_ONLY",
+      "outcome": "FP",
+      "error_source_category": "SPECIFICATION",
+      "rationale": "Specification-only analysis lacks source code execution context for PROP-AUTH-003 (missing_authentication)."
+    },
+    {
+      "case_id": "AUTH-004",
+      "proposition_id": "PROP-AUTH-004",
+      "category": "authentication",
+      "mode": "SPEC_ONLY",
+      "outcome": "FP",
+      "error_source_category": "SPECIFICATION",
+      "rationale": "Specification-only analysis lacks source code execution context for PROP-AUTH-004 (missing_authentication)."
+    },
+    {
+      "case_id": "AUTHZ-001",
+      "proposition_id": "PROP-AUTHZ-001",
+      "category": "authorization",
+      "mode": "SPEC_ONLY",
+      "outcome": "FP",
+      "error_source_category": "SPECIFICATION",
+      "rationale": "Specification-only analysis lacks source code execution context for PROP-AUTHZ-001 (missing_object_level_authorization)."
+    },
+    {
+      "case_id": "AUTHZ-003",
+      "proposition_id": "PROP-AUTHZ-003",
+      "category": "authorization",
+      "mode": "SPEC_ONLY",
+      "outcome": "FP",
+      "error_source_category": "SPECIFICATION",
+      "rationale": "Specification-only analysis lacks source code execution context for PROP-AUTHZ-003 (missing_object_level_authorization)."
+    },
+    {
+      "case_id": "INPUT-002",
+      "proposition_id": "PROP-INPUT-002",
+      "category": "input_validation",
+      "mode": "SPEC_ONLY",
+      "outcome": "FN",
+      "error_source_category": "SPECIFICATION",
+      "rationale": "Specification-only analysis lacks source code execution context for PROP-INPUT-002 (unconstrained_input)."
+    },
+    {
+      "case_id": "INPUT-003",
+      "proposition_id": "PROP-INPUT-003",
+      "category": "input_validation",
+      "mode": "SPEC_ONLY",
+      "outcome": "FN",
+      "error_source_category": "SPECIFICATION",
+      "rationale": "Specification-only analysis lacks source code execution context for PROP-INPUT-003 (unconstrained_input)."
+    },
+    {
+      "case_id": "SECRET-001",
+      "proposition_id": "PROP-SECRET-001",
+      "category": "secrets",
+      "mode": "SPEC_ONLY",
+      "outcome": "FN",
+      "error_source_category": "SPECIFICATION",
+      "rationale": "Specification-only analysis lacks source code execution context for PROP-SECRET-001 (hardcoded_secret)."
+    },
+    {
+      "case_id": "AUTH-003",
+      "proposition_id": "PROP-AUTH-003",
+      "category": "authentication",
+      "mode": "SOURCE_ONLY",
+      "outcome": "FP",
+      "error_source_category": "SOURCE",
+      "rationale": "Source static analysis lacks OpenAPI specification contract context for PROP-AUTH-003 (missing_authentication)."
+    },
+    {
+      "case_id": "AUTH-004",
+      "proposition_id": "PROP-AUTH-004",
+      "category": "authentication",
+      "mode": "SOURCE_ONLY",
+      "outcome": "FP",
+      "error_source_category": "SOURCE",
+      "rationale": "Source static analysis lacks OpenAPI specification contract context for PROP-AUTH-004 (missing_authentication)."
+    },
+    {
+      "case_id": "AUTHZ-003",
+      "proposition_id": "PROP-AUTHZ-003",
+      "category": "authorization",
+      "mode": "SOURCE_ONLY",
+      "outcome": "FP",
+      "error_source_category": "SOURCE",
+      "rationale": "Source static analysis lacks OpenAPI specification contract context for PROP-AUTHZ-003 (missing_object_level_authorization)."
+    },
+    {
+      "case_id": "INPUT-002",
+      "proposition_id": "PROP-INPUT-002",
+      "category": "input_validation",
+      "mode": "SOURCE_ONLY",
+      "outcome": "FN",
+      "error_source_category": "SOURCE",
+      "rationale": "Source static analysis lacks OpenAPI specification contract context for PROP-INPUT-002 (unconstrained_input)."
+    },
+    {
+      "case_id": "INPUT-003",
+      "proposition_id": "PROP-INPUT-003",
+      "category": "input_validation",
+      "mode": "SOURCE_ONLY",
+      "outcome": "FN",
+      "error_source_category": "SOURCE",
+      "rationale": "Source static analysis lacks OpenAPI specification contract context for PROP-INPUT-003 (unconstrained_input)."
+    },
+    {
+      "case_id": "DATA-002",
+      "proposition_id": "PROP-DATA-002",
+      "category": "sensitive_data",
+      "mode": "SOURCE_ONLY",
+      "outcome": "FN",
+      "error_source_category": "SOURCE",
+      "rationale": "Source static analysis lacks OpenAPI specification contract context for PROP-DATA-002 (sensitive_data_exposure)."
+    },
+    {
+      "case_id": "SECRET-004",
+      "proposition_id": "PROP-SECRET-004",
+      "category": "secrets",
+      "mode": "SOURCE_ONLY",
+      "outcome": "FP",
+      "error_source_category": "SOURCE",
+      "rationale": "Source static analysis lacks OpenAPI specification contract context for PROP-SECRET-004 (hardcoded_secret)."
+    },
+    {
+      "case_id": "AUTHZ-003",
+      "proposition_id": "PROP-AUTHZ-003",
+      "category": "authorization",
+      "mode": "CORRELATED",
+      "outcome": "FP",
+      "error_source_category": "CORRELATION",
+      "rationale": "Correlation engine emitted unrefuted false positive for PROP-AUTHZ-003."
+    },
+    {
+      "case_id": "INPUT-002",
+      "proposition_id": "PROP-INPUT-002",
+      "category": "input_validation",
+      "mode": "CORRELATED",
+      "outcome": "FN",
+      "error_source_category": "CORRELATION",
+      "rationale": "Correlation engine rule heuristic did not match for PROP-INPUT-002."
+    },
+    {
+      "case_id": "INPUT-003",
+      "proposition_id": "PROP-INPUT-003",
+      "category": "input_validation",
+      "mode": "CORRELATED",
+      "outcome": "FN",
+      "error_source_category": "CORRELATION",
+      "rationale": "Correlation engine rule heuristic did not match for PROP-INPUT-003."
+    },
+    {
+      "case_id": "SECRET-001",
+      "proposition_id": "PROP-SECRET-001",
+      "category": "secrets",
+      "mode": "CORRELATED",
+      "outcome": "FN",
+      "error_source_category": "SOURCE_INTRINSIC_NON_ENDPOINT",
+      "rationale": "Hardcoded source secret without OpenAPI counterpart. Non-endpoint finding intentionally excluded from cross-layer correlation pipeline; not a correlation engine defect."
+    }
+  ]
+}

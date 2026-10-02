@@ -13,9 +13,11 @@ def test_development_fallback_secret() -> None:
 
 def test_explicit_configuration_injection() -> None:
     custom_secret = "a" * 32
+    api_token = "b" * 32
     settings = Settings(
         environment="testing",
         session_secret=custom_secret,
+        api_access_token=api_token,
         app_name="Custom Test Analyzer",
     )
     assert settings.session_secret == custom_secret
@@ -50,8 +52,19 @@ def test_production_rejects_insecure_placeholders() -> None:
 
 def test_production_accepts_secure_secret() -> None:
     valid_secret = "super-secure-production-secret-key-that-is-long-enough"
+    valid_api_token = "separate-production-api-token-that-is-long-enough"
     settings = Settings(
         environment="production",
         session_secret=valid_secret,
+        api_access_token=valid_api_token,
     )
     assert settings.session_secret == valid_secret
+
+
+def test_production_requires_api_access_token() -> None:
+    with pytest.raises(ValueError, match="API_ACCESS_TOKEN must be explicitly configured"):
+        Settings(
+            environment="production",
+            session_secret="super-secure-production-secret-key-that-is-long-enough",
+            api_access_token="",
+        )

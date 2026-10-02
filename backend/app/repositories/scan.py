@@ -5,7 +5,7 @@ from typing import Any
 from app.analysis.correlation import MultiLayerAnalysisResult
 from app.db.models import AuditEvent, Scan, ScanResult
 from app.schemas.worker import AnalysisWorkerOutput
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 
@@ -80,6 +80,7 @@ class ScanRepository:
         source_filename: str,
         spec_hash: str | None = None,
         source_hash: str | None = None,
+        client_id: str | None = None,
     ) -> Scan:
         scan = Scan(
             project_name=project_name,
@@ -88,11 +89,26 @@ class ScanRepository:
             source_filename=source_filename,
             spec_hash=spec_hash,
             source_hash=source_hash,
+            client_id=client_id,
         )
         self.db.add(scan)
         self.db.commit()
         self.db.refresh(scan)
         return scan
+
+    def count_active_scans(self) -> int:
+        """Count total scans currently in QUEUED or RUNNING states."""
+        stmt = select(func.count()).select_from(Scan).where(Scan.status.in_(["QUEUED", "RUNNING"]))
+        return int(self.db.scalar(stmt) or 0)
+
+    def count_client_active_scans(self, client_id: str) -> int:
+        """Count active scans currently queued or running for a specific client."""
+        stmt = (
+            select(func.count())
+            .select_from(Scan)
+            .where(Scan.client_id == client_id, Scan.status.in_(["QUEUED", "RUNNING"]))
+        )
+        return int(self.db.scalar(stmt) or 0)
 
     def get_scan(self, scan_id: uuid.UUID) -> Scan | None:
         stmt = select(Scan).where(Scan.id == scan_id)

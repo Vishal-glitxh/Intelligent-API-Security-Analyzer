@@ -5,10 +5,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 RUN useradd --create-home --uid 10001 appuser
 WORKDIR /app
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.11.28 /uv /uvx /bin/
 COPY pyproject.toml ./
 COPY uv.lock* ./
-RUN uv sync --frozen --no-install-project
+COPY alembic.ini ./
+RUN uv sync --locked --no-install-project
 
 COPY backend ./backend
 USER appuser

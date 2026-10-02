@@ -7,9 +7,44 @@ services:
       POSTGRES_USER: analyzer
       POSTGRES_PASSWORD: analyzer
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U analyzer -d api_security"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql+psycopg://analyzer:analyzer@postgres:5432/api_security
+      SESSION_SECRET: development-only-replace-me
+      API_ACCESS_TOKEN: dev-insecure-api-access-token-do-not-use-in-production
+    command:
+      [
+        "sh",
+        "-c",
+        "uv run alembic upgrade head && exec uv run uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port 8000",
+      ]
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
 
 volumes:
