@@ -1,0 +1,42 @@
+openapi: 3.0.1
+info:
+  title: "VAmPI Benchmark \u2014 VAMPI-009"
+  description: Curated external benchmark case VAMPI-009 from erev0s/VAmPI
+  version: '0.1'
+servers:
+- url: http://localhost:5000
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+paths:
+  /users/v1/{username}/password:
+    put:
+      summary: Update user password
+      operationId: api_views.users.update_password
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: username
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password:
+                  type: string
+      responses:
+        '204':
+          description: Password updated
+        '400':
+          description: Malformed
+        '401':
+          description: Unauthorized

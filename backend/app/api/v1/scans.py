@@ -138,6 +138,36 @@ async def create_scan(
     )
 
 
+@router.get("", response_model=list[ScanResponse])
+def list_scans(
+    limit: int = Query(50, ge=1, le=100),
+    client: ClientIdentity = Depends(get_current_client),
+    db: Session = Depends(get_db),
+) -> list[ScanResponse]:
+    """List recent scans for the authenticated client."""
+    repo = ScanRepository(db)
+    scans = repo.list_scans(client_id=client.client_id, is_admin=client.is_admin, limit=limit)
+    return [
+        ScanResponse(
+            scan_id=s.id,
+            status=s.status.lower(),
+            project_name=s.project_name,
+            spec_filename=s.spec_filename,
+            source_filename=s.source_filename,
+            spec_hash=s.spec_hash,
+            source_hash=s.source_hash,
+            engine_version=s.engine_version,
+            rule_set_version=s.rule_set_version,
+            config_version=s.config_version,
+            error_message=s.error_message,
+            created_at=s.created_at,
+            started_at=s.started_at,
+            completed_at=s.completed_at,
+        )
+        for s in scans
+    ]
+
+
 @router.get("/{scan_id}", response_model=ScanResponse)
 def get_scan_status(
     scan_id: uuid.UUID,

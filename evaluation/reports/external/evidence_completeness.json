@@ -1,0 +1,41 @@
+{
+  "experiment_id": "8c9d1e2f-3a4b-5c6d-7e8f-9a0b1c2d3e4f",
+  "modes": {
+    "SPEC_ONLY": {
+      "mode": "SPEC_ONLY",
+      "present_count": 33,
+      "missing_count": 0,
+      "not_applicable_count": 22,
+      "score": 1.0,
+      "detail": {
+        "present": "33",
+        "missing": "0",
+        "not_applicable": "22"
+      }
+    },
+    "SOURCE_ONLY": {
+      "mode": "SOURCE_ONLY",
+      "present_count": 0,
+      "missing_count": 0,
+      "not_applicable_count": 0,
+      "score": 1.0,
+      "detail": {
+        "present": "0",
+        "missing": "0",
+        "not_applicable": "0"
+      }
+    },
+    "CORRELATED": {
+      "mode": "CORRELATED",
+      "present_count": 0,
+      "missing_count": 0,
+      "not_applicable_count": 0,
+      "score": 1.0,
+      "detail": {
+        "present": "0",
+        "missing": "0",
+        "not_applicable": "0"
+      }
+    }
+  }
+}

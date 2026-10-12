@@ -1,9 +1,10 @@
 from fastapi import APIRouter
 
-from app.api.v1 import scans
+from app.api.v1 import research, scans
 
 api_router = APIRouter()
 api_router.include_router(scans.router)
+api_router.include_router(research.router)
 
 
 @api_router.get("/health", tags=["system"])

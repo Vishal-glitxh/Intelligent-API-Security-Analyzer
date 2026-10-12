@@ -1,0 +1,32 @@
+openapi: 3.0.1
+info:
+  title: "VAmPI Benchmark \u2014 VAMPI-002"
+  description: Curated external benchmark case VAMPI-002 from erev0s/VAmPI
+  version: '0.1'
+servers:
+- url: http://localhost:5000
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+paths:
+  /:
+    get:
+      summary: VAmPI home
+      operationId: api_views.main.basic
+      responses:
+        '200':
+          description: Home - Help
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  help:
+                    type: string
+                  vulnerable:
+                    type: number

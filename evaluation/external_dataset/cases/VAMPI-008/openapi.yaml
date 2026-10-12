@@ -1,0 +1,31 @@
+openapi: 3.0.1
+info:
+  title: "VAmPI Benchmark \u2014 VAMPI-008"
+  description: Curated external benchmark case VAMPI-008 from erev0s/VAmPI
+  version: '0.1'
+servers:
+- url: http://localhost:5000
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+paths:
+  /users/v1/{username}:
+    delete:
+      summary: Delete user
+      operationId: api_views.users.delete_user
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: username
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: User deleted
+        '401':
+          description: Unauthorized

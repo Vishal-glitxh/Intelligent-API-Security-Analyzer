@@ -1,0 +1,46 @@
+openapi: 3.0.1
+info:
+  title: "VAmPI Benchmark \u2014 VAMPI-005"
+  description: Curated external benchmark case VAMPI-005 from erev0s/VAmPI
+  version: '0.1'
+servers:
+- url: http://localhost:5000
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+paths:
+  /users/v1/login:
+    post:
+      summary: Login user
+      operationId: api_views.users.login_user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - username
+              - password
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Successfully logged in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  auth_token:
+                    type: string

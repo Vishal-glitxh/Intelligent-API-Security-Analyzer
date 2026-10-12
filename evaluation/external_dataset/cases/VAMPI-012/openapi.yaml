@@ -1,0 +1,42 @@
+openapi: 3.0.1
+info:
+  title: "VAmPI Benchmark \u2014 VAMPI-012"
+  description: Curated external benchmark case VAMPI-012 from erev0s/VAmPI
+  version: '0.1'
+servers:
+- url: http://localhost:5000
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+paths:
+  /books/v1/{book_title}:
+    get:
+      summary: Retrieves book by title
+      operationId: api_views.books.get_by_title
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: book_title
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Book details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  book_title:
+                    type: string
+                  secret:
+                    type: string
+                  owner:
+                    type: string
+        '401':
+          description: Unauthorized

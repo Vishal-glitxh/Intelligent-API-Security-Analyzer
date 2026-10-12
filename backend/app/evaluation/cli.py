@@ -12,8 +12,17 @@ def main() -> None:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("evaluation/reports"),
+        default=None,
         help="Directory where generated JSON and HTML evaluation reports are saved",
+    )
+    parser.add_argument(
+        "--benchmark",
+        choices=["baseline", "external", "combined"],
+        default="baseline",
+        help=(
+            "Benchmark partition to evaluate: baseline (default, 24 synthetic cases), "
+            "external (VAmPI external benchmark), or combined"
+        ),
     )
     parser.add_argument(
         "--phase7-statistics",
@@ -37,14 +46,39 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    print("==========================================================================")
-    print("        INTELLIGENT API SECURITY ANALYZER — PHASE 6 EVALUATION          ")
-    print("==========================================================================")
-    print("Executing frozen Phase 1-5 analyzer across 24 benchmark cases in 3 modes...\n")
+    # Determine partitioned output and run directories
+    if args.output_dir is not None:
+        reports_dir = args.output_dir
+    elif args.benchmark == "baseline":
+        reports_dir = Path("evaluation/reports")
+    elif args.benchmark == "external":
+        reports_dir = Path("evaluation/reports/external")
+    elif args.benchmark == "combined":
+        reports_dir = Path("evaluation/reports/combined")
+    else:
+        reports_dir = Path("evaluation/reports")
 
-    report_data = run_evaluation_experiment(deterministic=args.deterministic)
+    if args.benchmark == "baseline":
+        runs_dir = Path("evaluation/runs")
+    elif args.benchmark == "external":
+        runs_dir = Path("evaluation/runs/external")
+    elif args.benchmark == "combined":
+        runs_dir = Path("evaluation/runs/combined")
+    else:
+        runs_dir = Path("evaluation/runs")
 
-    reports_dir = args.output_dir
+    b_name = args.benchmark.upper()
+    print("==========================================================================")
+    print(f"        INTELLIGENT API SECURITY ANALYZER — BENCHMARK ({b_name})")
+    print("==========================================================================")
+    print(f"Executing frozen Phase 1-5 analyzer across {args.benchmark} partition in 3 modes...\n")
+
+    report_data = run_evaluation_experiment(
+        runs_dir=runs_dir,
+        deterministic=args.deterministic,
+        benchmark=args.benchmark,
+    )
+
     generate_json_artifacts(report_data, reports_dir)
     html_file = generate_html_report(report_data, reports_dir)
 

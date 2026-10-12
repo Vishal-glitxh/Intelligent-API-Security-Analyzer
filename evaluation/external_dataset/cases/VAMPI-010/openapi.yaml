@@ -1,0 +1,29 @@
+openapi: 3.0.1
+info:
+  title: "VAmPI Benchmark \u2014 VAMPI-010"
+  description: Curated external benchmark case VAMPI-010 from erev0s/VAmPI
+  version: '0.1'
+servers:
+- url: http://localhost:5000
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+paths:
+  /books/v1:
+    get:
+      summary: Retrieves all books
+      operationId: api_views.books.get_all_books
+      responses:
+        '200':
+          description: List of books
+    post:
+      summary: Adds a new book
+      operationId: api_views.books.add_new_book
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Book added

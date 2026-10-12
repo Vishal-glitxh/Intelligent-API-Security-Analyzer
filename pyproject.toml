@@ -43,7 +43,13 @@ evaluate = "app.evaluation.cli:main"
 [tool.ruff]
 line-length = 100
 target-version = "py314"
-extend-exclude = ["backend/alembic/versions", "backend/tests/fixtures", "evaluation/dataset/cases", "scratch"]
+extend-exclude = [
+    "backend/alembic/versions",
+    "backend/tests/fixtures",
+    "evaluation/dataset/cases",
+    "evaluation/external_dataset/cases",
+    "scratch",
+]
 
 
 [tool.ruff.lint]

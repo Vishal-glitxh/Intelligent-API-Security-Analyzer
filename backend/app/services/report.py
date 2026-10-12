@@ -3,6 +3,13 @@ from typing import Any
 
 from app.db.models import Scan, ScanResult
 
+_CSP_META_TAG = (
+    '<meta http-equiv="Content-Security-Policy" content="'
+    "default-src 'none'; style-src 'unsafe-inline'; font-src 'none'; "
+    "img-src 'none'; script-src 'none'; base-uri 'none'; form-action 'none';"
+    '">'
+)
+
 
 class ReportService:
     @staticmethod
@@ -57,6 +64,7 @@ class ReportService:
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    {_CSP_META_TAG}
     <title>Security Analysis Report - {project_name}</title>
     <style>
         body {{ font-family: sans-serif; margin: 40px; background: #0f172a; color: #f8fafc; }}
@@ -117,6 +125,7 @@ class ReportService:
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    {_CSP_META_TAG}
     <title>API Security Report - {project_name}</title>
     <style>
         body {{ font-family: sans-serif; margin: 40px; background: #0f172a; color: #f8fafc; }}

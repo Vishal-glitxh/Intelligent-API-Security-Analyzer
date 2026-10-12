@@ -1,0 +1,213 @@
+dataset_version: 7.3.0
+total_cases: 12
+provenance:
+  repository: https://github.com/erev0s/VAmPI
+  pinned_commit: f16052dce83f05847133ec98f01c5193a41de7d8
+  author: Dimitrios Vlachos (Erev0s)
+  license: MIT
+cases:
+- case_id: VAMPI-001
+  category: authentication
+  description: Database initialization and seeding endpoint lacks authentication requirements.
+  ground_truth_label: SECURITY_CONDITION_PRESENT
+  dataset_version: 7.3.0
+  evaluation_role: EXTERNAL
+  propositions:
+  - proposition_id: PROP-VAMPI-001
+    category: authentication
+    endpoint: /createdb
+    method: GET
+    condition: missing_authentication
+    expected: true
+  expected_endpoint_pairs: []
+  expected_correlations: []
+  rationale: GET /createdb drops and repopulates the entire database with no authentication
+    check.
+- case_id: VAMPI-002
+  category: authentication
+  description: Root informational home and help endpoint is intentionally public.
+  ground_truth_label: INTENTIONAL_PUBLIC
+  dataset_version: 7.3.0
+  evaluation_role: EXTERNAL
+  propositions:
+  - proposition_id: PROP-VAMPI-002
+    category: authentication
+    endpoint: /
+    method: GET
+    condition: missing_authentication
+    expected: false
+  expected_endpoint_pairs: []
+  expected_correlations: []
+  rationale: GET / serves public service metadata and usage help. Expected safe/unauthenticated.
+- case_id: VAMPI-003
+  category: authentication
+  description: User directory endpoint exposes user catalog without authentication.
+  ground_truth_label: SECURITY_CONDITION_PRESENT
+  dataset_version: 7.3.0
+  evaluation_role: EXTERNAL
+  propositions:
+  - proposition_id: PROP-VAMPI-003
+    category: authentication
+    endpoint: /users/v1
+    method: GET
+    condition: missing_authentication
+    expected: true
+  expected_endpoint_pairs: []
+  expected_correlations: []
+  rationale: GET /users/v1 returns all registered users without requiring authentication
+    token.
+- case_id: VAMPI-004
+  category: sensitive_data
+  description: Debug endpoint exposes plaintext passwords and user credentials in
+    response schema.
+  ground_truth_label: SECURITY_CONDITION_PRESENT
+  dataset_version: 7.3.0
+  evaluation_role: EXTERNAL
+  propositions:
+  - proposition_id: PROP-VAMPI-004
+    category: sensitive_data
+    endpoint: /users/v1/_debug
+    method: GET
+    condition: sensitive_data_exposure
+    expected: true
+  expected_endpoint_pairs: []
+  expected_correlations: []
+  rationale: GET /users/v1/_debug schema and handler return password attribute in
+    response payload.
+- case_id: VAMPI-005
+  category: authentication
+  description: User login credential exchange is intentionally public.
+  ground_truth_label: INTENTIONAL_PUBLIC
+  dataset_version: 7.3.0
+  evaluation_role: EXTERNAL
+  propositions:
+  - proposition_id: PROP-VAMPI-005
+    category: authentication
+    endpoint: /users/v1/login
+    method: POST
+    condition: missing_authentication
+    expected: false
+  expected_endpoint_pairs: []
+  expected_correlations: []
+  rationale: POST /users/v1/login is the initial authentication handshake endpoint.
+    Intentionally unauthenticated.
+- case_id: VAMPI-006
+  category: authentication
+  description: Current user profile endpoint properly enforces Bearer token authentication.
+  ground_truth_label: SECURITY_CONDITION_ABSENT
+  dataset_version: 7.3.0
+  evaluation_role: EXTERNAL
+  propositions:
+  - proposition_id: PROP-VAMPI-006
+    category: authentication
+    endpoint: /me
+    method: GET
+    condition: missing_authentication
+    expected: false
+  expected_endpoint_pairs: []
+  expected_correlations: []
+  rationale: GET /me requires bearerAuth in OpenAPI and validates JWT token in source.
+- case_id: VAMPI-007
+  category: authentication
+  description: User lookup exhibits inconsistent authentication relative to sibling
+    DELETE operation.
+  ground_truth_label: SECURITY_CONDITION_PRESENT
+  dataset_version: 7.3.0
+  evaluation_role: EXTERNAL
+  propositions:
+  - proposition_id: PROP-VAMPI-007
+    category: authentication
+    endpoint: /users/v1/{username}
+    method: GET
+    condition: missing_authentication
+    expected: true
+  expected_endpoint_pairs: []
+  expected_correlations: []
+  rationale: Resource /users/v1/{username} defines DELETE with bearerAuth but GET
+    has no security requirements.
+- case_id: VAMPI-008
+  category: authentication
+  description: User deletion endpoint requires Bearer authentication and admin authorization.
+  ground_truth_label: SECURITY_CONDITION_ABSENT
+  dataset_version: 7.3.0
+  evaluation_role: EXTERNAL
+  propositions:
+  - proposition_id: PROP-VAMPI-008
+    category: authentication
+    endpoint: /users/v1/{username}
+    method: DELETE
+    condition: missing_authentication
+    expected: false
+  expected_endpoint_pairs: []
+  expected_correlations: []
+  rationale: DELETE /users/v1/{username} requires bearerAuth and validates token identity.
+- case_id: VAMPI-009
+  category: authorization
+  description: Password update endpoint accepts target username with coarse authentication
+    lacking object ownership check.
+  ground_truth_label: SECURITY_CONDITION_PRESENT
+  dataset_version: 7.3.0
+  evaluation_role: EXTERNAL
+  propositions:
+  - proposition_id: PROP-VAMPI-009
+    category: authorization
+    endpoint: /users/v1/{username}/password
+    method: PUT
+    condition: missing_object_level_authorization
+    expected: true
+  expected_endpoint_pairs: []
+  expected_correlations: []
+  rationale: PUT /users/v1/{username}/password allows arbitrary user password update
+    when vulnerable=1 (BOLA).
+- case_id: VAMPI-010
+  category: authentication
+  description: Book catalog retrieval exhibits inconsistent authentication relative
+    to sibling POST operation.
+  ground_truth_label: SECURITY_CONDITION_PRESENT
+  dataset_version: 7.3.0
+  evaluation_role: EXTERNAL
+  propositions:
+  - proposition_id: PROP-VAMPI-010
+    category: authentication
+    endpoint: /books/v1
+    method: GET
+    condition: missing_authentication
+    expected: true
+  expected_endpoint_pairs: []
+  expected_correlations: []
+  rationale: Resource /books/v1 defines POST with bearerAuth but GET has no security
+    requirements.
+- case_id: VAMPI-011
+  category: authentication
+  description: Book creation operation enforces Bearer token authentication.
+  ground_truth_label: SECURITY_CONDITION_ABSENT
+  dataset_version: 7.3.0
+  evaluation_role: EXTERNAL
+  propositions:
+  - proposition_id: PROP-VAMPI-011
+    category: authentication
+    endpoint: /books/v1
+    method: POST
+    condition: missing_authentication
+    expected: false
+  expected_endpoint_pairs: []
+  expected_correlations: []
+  rationale: POST /books/v1 requires bearerAuth and validates caller identity token.
+- case_id: VAMPI-012
+  category: authorization
+  description: Book retrieval by title exposes book secrets to any authenticated caller
+    without ownership validation.
+  ground_truth_label: SECURITY_CONDITION_PRESENT
+  dataset_version: 7.3.0
+  evaluation_role: EXTERNAL
+  propositions:
+  - proposition_id: PROP-VAMPI-012
+    category: authorization
+    endpoint: /books/v1/{book_title}
+    method: GET
+    condition: missing_object_level_authorization
+    expected: true
+  expected_endpoint_pairs: []
+  expected_correlations: []
+  rationale: GET /books/v1/{book_title} allows any authenticated user to retrieve
+    another user's secret book content (BOLA).

@@ -1,0 +1,23 @@
+case_id: VAMPI-011
+category: authentication
+description: Book creation operation enforces Bearer token authentication.
+ground_truth_label: SECURITY_CONDITION_ABSENT
+dataset_version: 7.3.0
+evaluation_role: EXTERNAL
+propositions:
+- proposition_id: PROP-VAMPI-011
+  category: authentication
+  endpoint: /books/v1
+  method: POST
+  condition: missing_authentication
+  expected: false
+expected_endpoint_pairs: []
+expected_correlations: []
+provenance:
+  upstream_repository: https://github.com/erev0s/VAmPI
+  pinned_commit: f16052dce83f05847133ec98f01c5193a41de7d8
+  license: MIT
+  source_evidence: VAmPI implementation in api_views/books.py, models/books_model.py,
+    models/user_model.py, config.py, app.py
+  openapi_evidence: VAmPI OpenAPI 3.0 specification for POST /books/v1
+rationale: POST /books/v1 requires bearerAuth and validates caller identity token.

@@ -1,0 +1,23 @@
+case_id: VAMPI-002
+category: authentication
+description: Root informational home and help endpoint is intentionally public.
+ground_truth_label: INTENTIONAL_PUBLIC
+dataset_version: 7.3.0
+evaluation_role: EXTERNAL
+propositions:
+- proposition_id: PROP-VAMPI-002
+  category: authentication
+  endpoint: /
+  method: GET
+  condition: missing_authentication
+  expected: false
+expected_endpoint_pairs: []
+expected_correlations: []
+provenance:
+  upstream_repository: https://github.com/erev0s/VAmPI
+  pinned_commit: f16052dce83f05847133ec98f01c5193a41de7d8
+  license: MIT
+  source_evidence: VAmPI implementation in api_views/main.py, models/user_model.py,
+    models/books_model.py, config.py, app.py
+  openapi_evidence: VAmPI OpenAPI 3.0 specification for GET /
+rationale: GET / serves public service metadata and usage help. Expected safe/unauthenticated.

@@ -342,3 +342,59 @@ def test_scan_client_id_persistence() -> None:
             next(db_gen)
         except StopIteration:
             pass
+
+
+def test_list_scans_authentication_and_tenant_isolation() -> None:
+    unauthenticated_client = TestClient(app)
+    assert unauthenticated_client.get("/api/v1/scans").status_code == 401
+
+    register_test_client_token("tenant-list-a-token", "tenant-list-a")
+    register_test_client_token("tenant-list-b-token", "tenant-list-b")
+
+    client_a = TestClient(app, headers={"X-API-Key": "tenant-list-a-token"})
+    client_b = TestClient(app, headers={"Authorization": "Bearer tenant-list-b-token"})
+
+    # Client A creates scan
+    res_a = client_a.post(
+        "/api/v1/scans",
+        files=_valid_files(),
+        data={"project_name": "Project Alpha Isolation"},
+    )
+    assert res_a.status_code == 202
+    scan_a_id = res_a.json()["scan_id"]
+
+    # Client B creates scan
+    res_b = client_b.post(
+        "/api/v1/scans",
+        files=_valid_files(),
+        data={"project_name": "Project Beta Isolation"},
+    )
+    assert res_b.status_code == 202
+    scan_b_id = res_b.json()["scan_id"]
+
+    # Verify listing isolation
+    list_a = client_a.get("/api/v1/scans")
+    assert list_a.status_code == 200
+    ids_a = [s["scan_id"] for s in list_a.json()]
+    assert scan_a_id in ids_a
+    assert scan_b_id not in ids_a
+
+    list_b = client_b.get("/api/v1/scans")
+    assert list_b.status_code == 200
+    ids_b = [s["scan_id"] for s in list_b.json()]
+    assert scan_b_id in ids_b
+    assert scan_a_id not in ids_b
+
+
+def test_research_benchmarks_authentication_and_payload() -> None:
+    unauthenticated_client = TestClient(app)
+    assert unauthenticated_client.get("/api/v1/research/benchmarks").status_code == 401
+
+    register_test_client_token("research-analyst-token", "research-analyst")
+    client = TestClient(app, headers={"X-API-Key": "research-analyst-token"})
+    response = client.get("/api/v1/research/benchmarks")
+    assert response.status_code == 200
+    data = response.json()
+    assert "baseline" in data
+    assert "external" in data
+    assert "phase7" in data

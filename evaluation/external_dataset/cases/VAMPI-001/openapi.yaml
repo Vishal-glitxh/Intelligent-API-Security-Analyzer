@@ -1,0 +1,28 @@
+openapi: 3.0.1
+info:
+  title: "VAmPI Benchmark \u2014 VAMPI-001"
+  description: Curated external benchmark case VAMPI-001 from erev0s/VAmPI
+  version: '0.1'
+servers:
+- url: http://localhost:5000
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+paths:
+  /createdb:
+    get:
+      summary: Creates and populates the database with dummy data
+      operationId: api_views.main.populate_db
+      responses:
+        '200':
+          description: Database populated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string

@@ -1,0 +1,39 @@
+openapi: 3.0.1
+info:
+  title: "VAmPI Benchmark \u2014 VAMPI-004"
+  description: Curated external benchmark case VAMPI-004 from erev0s/VAmPI
+  version: '0.1'
+servers:
+- url: http://localhost:5000
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+paths:
+  /users/v1/_debug:
+    get:
+      summary: Retrieves all details for all users
+      operationId: api_views.users.debug
+      responses:
+        '200':
+          description: Full details of all users including password
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        username:
+                          type: string
+                        password:
+                          type: string
+                        email:
+                          type: string
+                        admin:
+                          type: boolean

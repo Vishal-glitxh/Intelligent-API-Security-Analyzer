@@ -1,0 +1,198 @@
+{
+  "experiment_id": "8c9d1e2f-3a4b-5c6d-7e8f-9a0b1c2d3e4f",
+  "dataset_version": "7.3.0",
+  "modes": {
+    "SPEC_ONLY": {
+      "overall": {
+        "tp": 4,
+        "fp": 2,
+        "fn": 3,
+        "tn": 3,
+        "precision": 0.6666666666666666,
+        "recall": 0.5714285714285714,
+        "f1": 0.6153846153846153,
+        "fpr": 0.4,
+        "fnr": 0.42857142857142855,
+        "undefined_reasons": {}
+      },
+      "categories": {
+        "authentication": {
+          "tp": 4,
+          "fp": 2,
+          "fn": 0,
+          "tn": 3,
+          "precision": 0.6666666666666666,
+          "recall": 1.0,
+          "f1": 0.8,
+          "fpr": 0.4,
+          "fnr": 0.0,
+          "undefined_reasons": {}
+        },
+        "sensitive_data": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0,
+          "precision": null,
+          "recall": 0.0,
+          "f1": null,
+          "fpr": null,
+          "fnr": 1.0,
+          "undefined_reasons": {
+            "precision": "Zero positive predictions (TP + FP == 0)",
+            "f1": "Precision and/or Recall undefined or sum to zero",
+            "fpr": "Zero actual negative conditions (FP + TN == 0)"
+          }
+        },
+        "authorization": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 2,
+          "tn": 0,
+          "precision": null,
+          "recall": 0.0,
+          "f1": null,
+          "fpr": null,
+          "fnr": 1.0,
+          "undefined_reasons": {
+            "precision": "Zero positive predictions (TP + FP == 0)",
+            "f1": "Precision and/or Recall undefined or sum to zero",
+            "fpr": "Zero actual negative conditions (FP + TN == 0)"
+          }
+        }
+      }
+    },
+    "SOURCE_ONLY": {
+      "overall": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 7,
+        "tn": 5,
+        "precision": null,
+        "recall": 0.0,
+        "f1": null,
+        "fpr": 0.0,
+        "fnr": 1.0,
+        "undefined_reasons": {
+          "precision": "Zero positive predictions (TP + FP == 0)",
+          "f1": "Precision and/or Recall undefined or sum to zero"
+        }
+      },
+      "categories": {
+        "authentication": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 4,
+          "tn": 5,
+          "precision": null,
+          "recall": 0.0,
+          "f1": null,
+          "fpr": 0.0,
+          "fnr": 1.0,
+          "undefined_reasons": {
+            "precision": "Zero positive predictions (TP + FP == 0)",
+            "f1": "Precision and/or Recall undefined or sum to zero"
+          }
+        },
+        "sensitive_data": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0,
+          "precision": null,
+          "recall": 0.0,
+          "f1": null,
+          "fpr": null,
+          "fnr": 1.0,
+          "undefined_reasons": {
+            "precision": "Zero positive predictions (TP + FP == 0)",
+            "f1": "Precision and/or Recall undefined or sum to zero",
+            "fpr": "Zero actual negative conditions (FP + TN == 0)"
+          }
+        },
+        "authorization": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 2,
+          "tn": 0,
+          "precision": null,
+          "recall": 0.0,
+          "f1": null,
+          "fpr": null,
+          "fnr": 1.0,
+          "undefined_reasons": {
+            "precision": "Zero positive predictions (TP + FP == 0)",
+            "f1": "Precision and/or Recall undefined or sum to zero",
+            "fpr": "Zero actual negative conditions (FP + TN == 0)"
+          }
+        }
+      }
+    },
+    "CORRELATED": {
+      "overall": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 7,
+        "tn": 5,
+        "precision": null,
+        "recall": 0.0,
+        "f1": null,
+        "fpr": 0.0,
+        "fnr": 1.0,
+        "undefined_reasons": {
+          "precision": "Zero positive predictions (TP + FP == 0)",
+          "f1": "Precision and/or Recall undefined or sum to zero"
+        }
+      },
+      "categories": {
+        "authentication": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 4,
+          "tn": 5,
+          "precision": null,
+          "recall": 0.0,
+          "f1": null,
+          "fpr": 0.0,
+          "fnr": 1.0,
+          "undefined_reasons": {
+            "precision": "Zero positive predictions (TP + FP == 0)",
+            "f1": "Precision and/or Recall undefined or sum to zero"
+          }
+        },
+        "sensitive_data": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "tn": 0,
+          "precision": null,
+          "recall": 0.0,
+          "f1": null,
+          "fpr": null,
+          "fnr": 1.0,
+          "undefined_reasons": {
+            "precision": "Zero positive predictions (TP + FP == 0)",
+            "f1": "Precision and/or Recall undefined or sum to zero",
+            "fpr": "Zero actual negative conditions (FP + TN == 0)"
+          }
+        },
+        "authorization": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 2,
+          "tn": 0,
+          "precision": null,
+          "recall": 0.0,
+          "f1": null,
+          "fpr": null,
+          "fnr": 1.0,
+          "undefined_reasons": {
+            "precision": "Zero positive predictions (TP + FP == 0)",
+            "f1": "Precision and/or Recall undefined or sum to zero",
+            "fpr": "Zero actual negative conditions (FP + TN == 0)"
+          }
+        }
+      }
+    }
+  }
+}

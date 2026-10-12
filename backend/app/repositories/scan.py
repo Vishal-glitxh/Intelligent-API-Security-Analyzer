@@ -110,6 +110,18 @@ class ScanRepository:
         )
         return int(self.db.scalar(stmt) or 0)
 
+    def list_scans(
+        self,
+        client_id: str | None = None,
+        is_admin: bool = False,
+        limit: int = 50,
+    ) -> list[Scan]:
+        """Retrieve recent scans ordered by creation date."""
+        stmt = select(Scan).order_by(Scan.created_at.desc()).limit(limit)
+        if not is_admin and client_id:
+            stmt = stmt.where(Scan.client_id == client_id)
+        return list(self.db.scalars(stmt).all())
+
     def get_scan(self, scan_id: uuid.UUID) -> Scan | None:
         stmt = select(Scan).where(Scan.id == scan_id)
         return self.db.scalar(stmt)

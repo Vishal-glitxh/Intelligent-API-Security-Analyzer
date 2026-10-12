@@ -1,0 +1,24 @@
+case_id: VAMPI-003
+category: authentication
+description: User directory endpoint exposes user catalog without authentication.
+ground_truth_label: SECURITY_CONDITION_PRESENT
+dataset_version: 7.3.0
+evaluation_role: EXTERNAL
+propositions:
+- proposition_id: PROP-VAMPI-003
+  category: authentication
+  endpoint: /users/v1
+  method: GET
+  condition: missing_authentication
+  expected: true
+expected_endpoint_pairs: []
+expected_correlations: []
+provenance:
+  upstream_repository: https://github.com/erev0s/VAmPI
+  pinned_commit: f16052dce83f05847133ec98f01c5193a41de7d8
+  license: MIT
+  source_evidence: VAmPI implementation in api_views/users.py, models/user_model.py,
+    config.py, app.py
+  openapi_evidence: VAmPI OpenAPI 3.0 specification for GET /users/v1
+rationale: GET /users/v1 returns all registered users without requiring authentication
+  token.

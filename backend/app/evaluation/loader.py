@@ -15,10 +15,24 @@ from app.evaluation.models import (
 logger = logging.getLogger(__name__)
 
 DEFAULT_DATASET_DIR = Path("evaluation/dataset")
+BASELINE_DATASET_DIR = Path("evaluation/dataset")
+EXTERNAL_DATASET_DIR = Path("evaluation/external_dataset")
 
 
-def load_dataset(dataset_dir: Path = DEFAULT_DATASET_DIR) -> tuple[CaseGroundTruth, ...]:
+def load_dataset(
+    dataset_dir: Path = DEFAULT_DATASET_DIR,
+    benchmark: str | None = None,
+) -> tuple[CaseGroundTruth, ...]:
     """Load benchmark ground truth cases and validate dataset integrity."""
+    if benchmark == "baseline":
+        dataset_dir = BASELINE_DATASET_DIR
+    elif benchmark == "external":
+        dataset_dir = EXTERNAL_DATASET_DIR
+    elif benchmark == "combined":
+        baseline_cases = load_dataset(BASELINE_DATASET_DIR, benchmark=None)
+        external_cases = load_dataset(EXTERNAL_DATASET_DIR, benchmark=None)
+        return tuple(list(baseline_cases) + list(external_cases))
+
     dataset_dir = dataset_dir.resolve()
     gt_master_path = dataset_dir / "ground_truth.yaml"
 
@@ -98,7 +112,11 @@ def load_dataset(dataset_dir: Path = DEFAULT_DATASET_DIR) -> tuple[CaseGroundTru
         )
         loaded_cases.append(case_gt)
 
-    if len(loaded_cases) != 24:
+    if (
+        dataset_dir == BASELINE_DATASET_DIR.resolve()
+        and benchmark in (None, "baseline")
+        and len(loaded_cases) != 24
+    ):
         logger.warning(
             f"Expected benchmark size of 24 cases, but dataset contains {len(loaded_cases)} cases."
         )
@@ -111,6 +129,16 @@ def get_case_files(case_id: str, dataset_dir: Path = DEFAULT_DATASET_DIR) -> tup
     case_dir = (dataset_dir / "cases" / case_id).resolve()
     spec_path = case_dir / "openapi.yaml"
     source_dir = case_dir / "source"
+
+    if spec_path.exists() and source_dir.exists():
+        return spec_path, source_dir
+
+    for fallback_base in (BASELINE_DATASET_DIR, EXTERNAL_DATASET_DIR):
+        fb_case_dir = (fallback_base / "cases" / case_id).resolve()
+        fb_spec = fb_case_dir / "openapi.yaml"
+        fb_source = fb_case_dir / "source"
+        if fb_spec.exists() and fb_source.exists():
+            return fb_spec, fb_source
 
     if not spec_path.exists():
         raise FileNotFoundError(f"OpenAPI spec missing for case '{case_id}' at {spec_path}")

@@ -23,7 +23,12 @@ from app.evaluation.classifier import (
     evaluate_endpoint_pair,
     evaluate_security_proposition,
 )
-from app.evaluation.loader import DEFAULT_DATASET_DIR, get_case_files, load_dataset
+from app.evaluation.loader import (
+    DEFAULT_DATASET_DIR,
+    EXTERNAL_DATASET_DIR,
+    get_case_files,
+    load_dataset,
+)
 from app.evaluation.metrics import (
     compute_dimension_b_score,
     compute_dimension_c_score,
@@ -171,23 +176,45 @@ def run_evaluation_experiment(
     deterministic: bool = True,
     experiment_id: str | None = None,
     execution_timestamp: str | None = None,
+    benchmark: str = "baseline",
 ) -> EvaluationReportData:
-    """Execute complete research evaluation pipeline across all 24 benchmark cases in 3 modes."""
+    """Execute complete research evaluation pipeline across benchmark cases in 3 modes."""
+    if benchmark == "baseline":
+        default_exp_id = "4eb72e4c-2ba5-47c8-ad1b-9d992b709f61"
+        default_exec_ts = "2026-09-20T04:15:55Z"
+        default_dataset_ver = "6.0.0"
+        dataset_path = dataset_dir
+    elif benchmark == "external":
+        default_exp_id = "8c9d1e2f-3a4b-5c6d-7e8f-9a0b1c2d3e4f"
+        default_exec_ts = "2026-10-12T12:00:00Z"
+        default_dataset_ver = "7.3.0"
+        dataset_path = EXTERNAL_DATASET_DIR if dataset_dir == DEFAULT_DATASET_DIR else dataset_dir
+    elif benchmark == "combined":
+        default_exp_id = "9d0e1f2a-4b5c-6d7e-8f9a-0b1c2d3e4f5a"
+        default_exec_ts = "2026-10-12T12:00:00Z"
+        default_dataset_ver = "6.0.0+7.3.0"
+        dataset_path = dataset_dir
+    else:
+        default_exp_id = "4eb72e4c-2ba5-47c8-ad1b-9d992b709f61"
+        default_exec_ts = "2026-09-20T04:15:55Z"
+        default_dataset_ver = "6.0.0"
+        dataset_path = dataset_dir
+
     if deterministic:
-        exp_id = experiment_id or "4eb72e4c-2ba5-47c8-ad1b-9d992b709f61"
-        exec_ts = execution_timestamp or "2026-09-20T04:15:55Z"
+        exp_id = experiment_id or default_exp_id
+        exec_ts = execution_timestamp or default_exec_ts
     else:
         exp_id = experiment_id or str(uuid.uuid4())
         exec_ts = execution_timestamp or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
-    dataset = load_dataset(dataset_dir)
+    dataset = load_dataset(dataset_path, benchmark=benchmark)
     runs_dir = runs_dir.resolve()
 
     analysis_results: dict[str, Any] = {}
 
-    # Execute frozen Phase 2-4 analyzer against all 24 benchmark cases
+    # Execute frozen Phase 2-4 analyzer against all benchmark cases in this partition
     for case in dataset:
-        spec_path, source_dir = get_case_files(case.case_id, dataset_dir)
+        spec_path, source_dir = get_case_files(case.case_id, dataset_path)
         spec_content, multi_layer_res = run_single_case_analysis(spec_path, source_dir)
 
         spec_hash = hashlib.sha256(spec_content.encode("utf-8")).hexdigest()
@@ -219,7 +246,7 @@ def run_evaluation_experiment(
 
     report_data = EvaluationReportData(
         experiment_id=exp_id,
-        dataset_version="6.0.0",
+        dataset_version=default_dataset_ver,
         analyzer_version="0.1.0",
         rule_set_version="0.1.0",
         config_version="1.0.0",
