@@ -4,13 +4,7 @@ import {
   BarChart3, 
   AlertTriangle, 
   RefreshCw, 
-  CheckCircle2, 
-  Layers, 
-  HelpCircle,
-  FileText,
-  Sliders,
   TrendingUp,
-  Percent
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -21,84 +15,100 @@ import {
   Tooltip, 
   Legend, 
   ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar
 } from 'recharts';
 import { api } from '../../services/api';
-import { fallbackBenchmarkData } from '../../services/benchmarkData';
-import { ResearchBenchmarksData, BenchmarkMetricsReport, ConfidenceInterval } from '../../types/research';
+import { ResearchBenchmarksData, BenchmarkMetricsReport, ConfidenceInterval, ModeComparison } from '../../types/research';
+import { formatResearchPercent, toResearchChartPercent } from '../../utils/research';
 
 export const ResearchDashboardScreen: React.FC = () => {
-  const [data, setData] = useState<ResearchBenchmarksData>(fallbackBenchmarkData);
-  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<ResearchBenchmarksData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'baseline' | 'external' | 'comparison'>('baseline');
 
-  const fetchBenchmarks = async () => {
+  useEffect(() => {
+    let active = true;
+    void api.getResearchBenchmarks()
+      .then((res) => {
+        if (active && (res?.baseline || res?.external)) setData(res);
+        else if (active) setLoadError('The benchmark service returned no published evaluation data.');
+      })
+      .catch((error: unknown) => {
+        if (active) setLoadError(error instanceof Error ? error.message : 'Research benchmarks could not be loaded.');
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  const reloadBenchmarks = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await api.getResearchBenchmarks();
-      if (res && res.baseline) {
-        setData(res);
-      }
-    } catch {
-      // Fallback is already loaded as default
+      if (!res?.baseline && !res?.external) throw new Error('The benchmark service returned no published evaluation data.');
+      setData(res);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Research benchmarks could not be refreshed.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchBenchmarks();
-  }, []);
-
-  const baselineReport = data.baseline || fallbackBenchmarkData.baseline;
-  const externalReport = data.external || fallbackBenchmarkData.external;
+  const baselineReport = data?.baseline ?? null;
+  const externalReport = data?.external ?? null;
 
   // Prepare chart data for baseline
   const getModesComparisonData = (report: BenchmarkMetricsReport | null) => {
     if (!report) return [];
     const modes = report.modes;
-    return [
-      {
-        mode: 'SPEC_ONLY',
-        precision: Number(((modes.SPEC_ONLY.overall.precision ?? 0) * 100).toFixed(1)),
-        recall: Number(((modes.SPEC_ONLY.overall.recall ?? 0) * 100).toFixed(1)),
-        f1: Number(((modes.SPEC_ONLY.overall.f1 ?? 0) * 100).toFixed(1)),
-        fpr: Number(((modes.SPEC_ONLY.overall.fpr ?? 0) * 100).toFixed(1)),
-        fnr: Number(((modes.SPEC_ONLY.overall.fnr ?? 0) * 100).toFixed(1)),
-      },
-      {
-        mode: 'SOURCE_ONLY',
-        precision: Number(((modes.SOURCE_ONLY.overall.precision ?? 0) * 100).toFixed(1)),
-        recall: Number(((modes.SOURCE_ONLY.overall.recall ?? 0) * 100).toFixed(1)),
-        f1: Number(((modes.SOURCE_ONLY.overall.f1 ?? 0) * 100).toFixed(1)),
-        fpr: Number(((modes.SOURCE_ONLY.overall.fpr ?? 0) * 100).toFixed(1)),
-        fnr: Number(((modes.SOURCE_ONLY.overall.fnr ?? 0) * 100).toFixed(1)),
-      },
-      {
-        mode: 'CORRELATED',
-        precision: Number(((modes.CORRELATED.overall.precision ?? 0) * 100).toFixed(1)),
-        recall: Number(((modes.CORRELATED.overall.recall ?? 0) * 100).toFixed(1)),
-        f1: Number(((modes.CORRELATED.overall.f1 ?? 0) * 100).toFixed(1)),
-        fpr: Number(((modes.CORRELATED.overall.fpr ?? 0) * 100).toFixed(1)),
-        fnr: Number(((modes.CORRELATED.overall.fnr ?? 0) * 100).toFixed(1)),
-      },
-    ];
+    return (['SPEC_ONLY', 'SOURCE_ONLY', 'CORRELATED'] as const).map((mode) => {
+      const metrics = modes[mode].overall;
+      return {
+        mode,
+        precision: toResearchChartPercent(metrics.precision),
+        recall: toResearchChartPercent(metrics.recall),
+        f1: toResearchChartPercent(metrics.f1),
+        fpr: toResearchChartPercent(metrics.fpr),
+        fnr: toResearchChartPercent(metrics.fnr),
+      };
+    });
   };
 
   const baselineChartData = getModesComparisonData(baselineReport);
   const externalChartData = getModesComparisonData(externalReport);
 
   // Confidence intervals list
-  const confidenceIntervals: ConfidenceInterval[] = Array.isArray(data.phase7?.confidence_intervals)
-    ? data.phase7?.confidence_intervals
-    : data.phase7?.confidence_intervals?.intervals || (fallbackBenchmarkData.phase7?.confidence_intervals as ConfidenceInterval[]) || [];
+  const intervals = data?.phase7?.confidence_intervals;
+  const confidenceIntervals: ConfidenceInterval[] = Array.isArray(intervals)
+    ? intervals
+    : intervals?.intervals || [];
+  const rawComparisons = data?.phase7?.mode_comparisons;
+  const modeComparisons: ModeComparison[] = Array.isArray(rawComparisons)
+    ? rawComparisons
+    : rawComparisons?.comparisons || [];
+
+  const pageIntro = (
+    <section className="page-intro">
+      <div>
+        <div className="page-eyebrow"><span className="page-eyebrow-mark" /> Evidence & repeatability</div>
+        <h2 className="page-heading">Research benchmarks</h2>
+        <p className="page-description">Compare published baseline and external evaluations. These research metrics are separate from live scan activity.</p>
+      </div>
+    </section>
+  );
+
+  if (loading && !data) {
+    return <>{pageIntro}<div className="screen-loader" role="status"><RefreshCw className="h-5 w-5 animate-spin" /> Loading published research data</div></>;
+  }
+
+  if (!data || (!baselineReport && !externalReport)) {
+    return <>{pageIntro}<div className="surface-card empty-state" role="alert"><span className="empty-state-icon"><AlertTriangle /></span><h3>Published benchmarks unavailable</h3><p>{loadError || 'The API has no published benchmark artifacts configured.'}</p><button className="button button-primary" onClick={reloadBenchmarks} disabled={loading}><RefreshCw className={loading ? 'animate-spin' : ''} /> Retry</button></div></>;
+  }
 
   return (
     <div className="space-y-6">
+      {pageIntro}
+      {loadError && <div className="surface-card p-4 text-xs text-amber-800" role="status">Refresh failed. Showing the last benchmark response from the API: {loadError}</div>}
       {/* Non-Live Research Disclaimer Banner */}
       <div className="bg-amber-950/20 border border-amber-500/30 p-4 rounded-lg flex items-start gap-3">
         <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
@@ -108,7 +118,7 @@ export const ResearchDashboardScreen: React.FC = () => {
           </span>
           <p className="text-amber-200/80">
             Metrics displayed on this dashboard represent formal empirical benchmarks against pinned ground truth datasets.
-            They are strictly isolated from operational live scans and evaluate engine efficacy across the frozen detection pipeline.
+            These values come from published evaluation artifacts and are isolated from live scans. They describe the analyzer version recorded in each run, not necessarily the current working-tree implementation.
           </p>
         </div>
       </div>
@@ -149,7 +159,7 @@ export const ResearchDashboardScreen: React.FC = () => {
         </div>
 
         <button
-          onClick={fetchBenchmarks}
+          onClick={reloadBenchmarks}
           disabled={loading}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-medium rounded-md transition-colors"
         >
@@ -206,25 +216,25 @@ export const ResearchDashboardScreen: React.FC = () => {
                     <div>
                       <span className="text-[10px] text-slate-500 uppercase block">Precision</span>
                       <span className="text-lg font-bold text-slate-100">
-                        {m.precision !== null ? `${(m.precision * 100).toFixed(1)}%` : 'N/A'}
+                        {formatResearchPercent(m.precision)}
                       </span>
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-500 uppercase block">Recall</span>
                       <span className="text-lg font-bold text-slate-100">
-                        {m.recall !== null ? `${(m.recall * 100).toFixed(1)}%` : 'N/A'}
+                        {formatResearchPercent(m.recall)}
                       </span>
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-500 uppercase block">F1 Score</span>
                       <span className="text-lg font-bold text-teal-400">
-                        {m.f1 !== null ? `${(m.f1 * 100).toFixed(1)}%` : 'N/A'}
+                        {formatResearchPercent(m.f1)}
                       </span>
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-500 uppercase block">False Pos. Rate</span>
                       <span className="text-lg font-bold text-rose-400">
-                        {m.fpr !== null ? `${(m.fpr * 100).toFixed(1)}%` : 'N/A'}
+                        {formatResearchPercent(m.fpr)}
                       </span>
                     </div>
                   </div>
@@ -247,18 +257,18 @@ export const ResearchDashboardScreen: React.FC = () => {
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={baselineChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                  <XAxis dataKey="mode" stroke="#64748b" tick={{ fontSize: 11 }} />
-                  <YAxis stroke="#64748b" domain={[0, 100]} tick={{ fontSize: 11 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e7ebf2" />
+                  <XAxis dataKey="mode" stroke="#8794a7" tick={{ fontSize: 11 }} />
+                  <YAxis stroke="#8794a7" domain={[0, 100]} tick={{ fontSize: 11 }} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '6px', fontSize: '11px' }}
+                    contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e4e9f1', borderRadius: '12px', color: '#24344c', fontSize: '11px', boxShadow: '0 10px 30px rgba(27, 45, 75, .12)' }}
                   />
                   <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                  <Bar dataKey="precision" fill="#0d9488" name="Precision (%)" />
-                  <Bar dataKey="recall" fill="#3b82f6" name="Recall (%)" />
-                  <Bar dataKey="f1" fill="#14b8a6" name="F1 Score (%)" />
-                  <Bar dataKey="fpr" fill="#f43f5e" name="FPR (%)" />
-                  <Bar dataKey="fnr" fill="#eab308" name="FNR (%)" />
+                  <Bar dataKey="precision" fill="#315efb" name="Precision (%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="recall" fill="#57a1e8" name="Recall (%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="f1" fill="#18a873" name="F1 Score (%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="fpr" fill="#e04462" name="FPR (%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="fnr" fill="#c27b0a" name="FNR (%)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -273,14 +283,13 @@ export const ResearchDashboardScreen: React.FC = () => {
           <div className="bg-rose-950/20 border border-rose-500/30 p-5 rounded-lg space-y-2">
             <div className="flex items-center gap-2 text-rose-300 font-semibold text-sm">
               <AlertTriangle className="h-4 w-4 text-rose-400" />
-              <span>External VAmPI Benchmark Limitation: Connexion Routing Architecture</span>
+              <span>Published VAmPI Run: Connexion Route Coverage</span>
             </div>
             <p className="text-xs text-rose-200/90 leading-relaxed font-mono">
-              VAmPI registers endpoints via Connexion swagger-ui config rather than standard native Flask <code>@app.route</code> decorators.
-              Consequently, the frozen Phase 2 AST/regex extractor does not resolve Connexion source routes, resulting in zero source-layer detections (TP=0, FP=0, FN=7) and cascading zero detections in Correlated mode.
+              VAmPI registers endpoints through Connexion OpenAPI operation IDs rather than Flask route decorators. This published report predates the current workspace's static operation-ID mapping, so its zero source-layer detections (TP=0, FP=0, FN=7) and correlated results describe the earlier analyzer version.
             </p>
             <p className="text-xs text-slate-400">
-              This outcome demonstrates rigorous empirical transparency: the evaluation faithfully tests frozen analyzers against third-party architectures without post-hoc cherry-picking or modification.
+              The published result remains unchanged for reproducibility. A fresh evaluation is required before making claims about the current analyzer's Connexion coverage.
             </p>
           </div>
 
@@ -303,25 +312,25 @@ export const ResearchDashboardScreen: React.FC = () => {
                     <div>
                       <span className="text-[10px] text-slate-500 uppercase block">Precision</span>
                       <span className="text-lg font-bold text-slate-100">
-                        {m.precision !== null ? `${(m.precision * 100).toFixed(1)}%` : 'Undefined (0/0)'}
+                        {formatResearchPercent(m.precision)}
                       </span>
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-500 uppercase block">Recall</span>
                       <span className="text-lg font-bold text-slate-100">
-                        {m.recall !== null ? `${(m.recall * 100).toFixed(1)}%` : '0.0%'}
+                        {formatResearchPercent(m.recall)}
                       </span>
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-500 uppercase block">F1 Score</span>
                       <span className="text-lg font-bold text-teal-400">
-                        {m.f1 !== null ? `${(m.f1 * 100).toFixed(1)}%` : 'Undefined'}
+                        {formatResearchPercent(m.f1)}
                       </span>
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-500 uppercase block">False Pos. Rate</span>
                       <span className="text-lg font-bold text-rose-400">
-                        {m.fpr !== null ? `${(m.fpr * 100).toFixed(1)}%` : '0.0%'}
+                        {formatResearchPercent(m.fpr)}
                       </span>
                     </div>
                   </div>
@@ -344,17 +353,17 @@ export const ResearchDashboardScreen: React.FC = () => {
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={externalChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                  <XAxis dataKey="mode" stroke="#64748b" tick={{ fontSize: 11 }} />
-                  <YAxis stroke="#64748b" domain={[0, 100]} tick={{ fontSize: 11 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e7ebf2" />
+                  <XAxis dataKey="mode" stroke="#8794a7" tick={{ fontSize: 11 }} />
+                  <YAxis stroke="#8794a7" domain={[0, 100]} tick={{ fontSize: 11 }} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '6px', fontSize: '11px' }}
+                    contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e4e9f1', borderRadius: '12px', color: '#24344c', fontSize: '11px', boxShadow: '0 10px 30px rgba(27, 45, 75, .12)' }}
                   />
                   <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                  <Bar dataKey="precision" fill="#0d9488" name="Precision (%)" />
-                  <Bar dataKey="recall" fill="#3b82f6" name="Recall (%)" />
-                  <Bar dataKey="f1" fill="#14b8a6" name="F1 Score (%)" />
-                  <Bar dataKey="fpr" fill="#f43f5e" name="FPR (%)" />
+                  <Bar dataKey="precision" fill="#315efb" name="Precision (%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="recall" fill="#57a1e8" name="Recall (%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="f1" fill="#18a873" name="F1 Score (%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="fpr" fill="#e04462" name="FPR (%)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -372,7 +381,7 @@ export const ResearchDashboardScreen: React.FC = () => {
               <span>Phase 7 Statistical Rigor & 95% Confidence Intervals</span>
             </h3>
             <p className="text-xs text-slate-400">
-              Calculated using Wilson Score intervals for proportions and 2,000-sample BCa bootstrap resampling for composite F1 statistics.
+              Wilson score intervals are used for proportions and 10,000-resample percentile bootstrap intervals for F1. Sample sizes vary by metric; intervals are descriptive and do not imply statistical significance.
             </p>
           </div>
 
@@ -383,7 +392,7 @@ export const ResearchDashboardScreen: React.FC = () => {
                 Confidence Intervals (95% CI)
               </h4>
               <span className="text-xs font-mono text-slate-500">
-                Baseline (N=24)
+                Baseline evaluation; sample size varies by metric
               </span>
             </div>
 
@@ -396,6 +405,7 @@ export const ResearchDashboardScreen: React.FC = () => {
                     <th className="py-2.5 px-4">Point Estimate</th>
                     <th className="py-2.5 px-4">95% CI Lower</th>
                     <th className="py-2.5 px-4">95% CI Upper</th>
+                    <th className="py-2.5 px-4">N</th>
                     <th className="py-2.5 px-4">Method</th>
                   </tr>
                 </thead>
@@ -409,22 +419,51 @@ export const ResearchDashboardScreen: React.FC = () => {
                         {ci.metric}
                       </td>
                       <td className="py-2.5 px-4 text-slate-100 font-bold">
-                        {ci.estimate !== null ? `${(ci.estimate * 100).toFixed(1)}%` : 'N/A'}
+                        {formatResearchPercent(ci.estimate)}
                       </td>
                       <td className="py-2.5 px-4 text-slate-400">
-                        {ci.lower !== null ? `${(ci.lower * 100).toFixed(1)}%` : 'N/A'}
+                        {formatResearchPercent(ci.lower)}
                       </td>
                       <td className="py-2.5 px-4 text-slate-400">
-                        {ci.upper !== null ? `${(ci.upper * 100).toFixed(1)}%` : 'N/A'}
+                        {formatResearchPercent(ci.upper)}
                       </td>
+                      <td className="py-2.5 px-4 text-slate-400">{ci.sample_size ?? '—'}</td>
                       <td className="py-2.5 px-4 text-slate-500 text-[11px]">
-                        {ci.method}
+                        {ci.method.replaceAll('_', ' ')}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+          </div>
+
+          <div className="surface-card overflow-hidden">
+            <div className="surface-header">
+              <h4 className="surface-title">Mode comparisons</h4>
+              <span className="surface-meta">Published statistical report</span>
+            </div>
+            {modeComparisons.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="activity-table">
+                  <thead><tr><th>Metric</th><th>Comparison</th><th>Difference</th><th>Significance</th><th>Interpretation</th></tr></thead>
+                  <tbody>{modeComparisons.map((comparison, index) => {
+                    const delta = comparison.absolute_difference ?? comparison.difference;
+                    const isSignificant = comparison.statistically_significant ?? comparison.significant;
+                    const label = comparison.comparison || `${comparison.comparison_mode ?? '—'} vs ${comparison.baseline_mode ?? '—'}`;
+                    return (
+                      <tr key={`${comparison.metric}-${label}-${index}`}>
+                        <td>{comparison.metric.toUpperCase()}</td>
+                        <td>{label}</td>
+                        <td>{delta === undefined ? 'N/A' : formatResearchPercent(delta)}</td>
+                        <td>{isSignificant === undefined ? 'Not reported' : isSignificant ? 'Significant' : 'Not significant'}</td>
+                        <td>{comparison.notes || 'No interpretation supplied in the published report.'}</td>
+                      </tr>
+                    );
+                  })}</tbody>
+                </table>
+              </div>
+            ) : <div className="empty-state"><p>No mode-comparison artifact is available from the research API.</p></div>}
           </div>
         </div>
       )}

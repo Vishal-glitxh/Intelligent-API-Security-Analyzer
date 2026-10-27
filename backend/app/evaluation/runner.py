@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 def run_single_case_analysis(
     spec_path: Path, source_dir: Path
 ) -> tuple[str, MultiLayerAnalysisResult]:
-    """Execute frozen Phase 2-4 analysis engines returning raw MultiLayerAnalysisResult."""
+    """Execute Phase 2-4 analysis engines returning raw MultiLayerAnalysisResult."""
     with open(spec_path, encoding="utf-8") as f:
         spec_content = f.read()
 
@@ -60,6 +60,9 @@ def run_single_case_analysis(
     normalized_spec = normalize_openapi_spec(loaded_spec)
 
     loaded_source = load_source_from_disk(source_dir)
+    # SOURCE_ONLY is the independent source-analysis condition. Connexion's routes are
+    # declared by OpenAPI, so passing the contract here would leak SPEC_ONLY evidence
+    # into the source-only benchmark. Production scans pass the spec to normalization.
     source_tree = normalize_source_tree(loaded_source)
 
     # 1. Phase 2: Spec Analysis
@@ -212,7 +215,7 @@ def run_evaluation_experiment(
 
     analysis_results: dict[str, Any] = {}
 
-    # Execute frozen Phase 2-4 analyzer against all benchmark cases in this partition
+    # Execute the current Phase 2-4 analyzer against all benchmark cases in this partition
     for case in dataset:
         spec_path, source_dir = get_case_files(case.case_id, dataset_path)
         spec_content, multi_layer_res = run_single_case_analysis(spec_path, source_dir)

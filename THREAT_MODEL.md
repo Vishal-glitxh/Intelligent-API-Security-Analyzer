@@ -105,3 +105,116 @@ The Intelligent API Security Analyzer statically inspects untrusted OpenAPI spec
 - **Controls**:
   - In production mode, `SESSION_SECRET` and `API_ACCESS_TOKEN` must be at least 32 characters and cannot use default placeholders.
   - All database queries and logging scrub sensitive variables.
+
+### 3.9 External OpenAPI Reference Retrieval
+- **Threat**: Third-party OpenAPI validation can follow external references, allowing an
+  uploaded specification to request internal network resources or local files.
+- **Worker-boundary control**: `guard_specification_references` safely parses the document
+  before the frozen analyzer's loader and validator run. It checks nested mappings and
+  sequences, including YAML aliases and merge keys, without resolving references.
+  `$ref`, `$dynamicRef`, and `$recursiveRef` must be valid in-document URI fragments:
+  root references, JSON Pointers, or JSON Schema anchors. HTTP(S), file, relative-file,
+  absolute-path, and other external references are rejected, including in unused components.
+  The policy conservatively checks these keywords wherever they occur, including examples.
+- **Parser resource budgets**: The worker preflight retains the frozen loader's 10 MiB
+  document ceiling and enforces composition-time limits of 50,000 YAML nodes, 128 nested
+  nodes, and 1,024 alias references. Limit violations use the stable sanitized error
+  `OPENAPI_PARSING_ERROR: YAML exceeds supported complexity limits.` The bounds apply
+  before object construction; byte size also bounds scanning of scalar content.
+- **Aliases and merges**: Ordinary aliases are accepted within the alias and node budgets.
+  Shared objects are checked once with an iterative traversal, and cyclic aliases are
+  rejected before reaching the frozen recursive location walker. YAML `<<` merge keys are
+  rejected during construction before PyYAML's merge flattener runs, since nested repeated
+  merges can expand mapping entries exponentially. This is a compatibility trade-off for
+  uploaded specifications using PyYAML's YAML 1.1 merge extension; project fixtures and
+  benchmark specifications do not use merge keys.
+- **Errors**: Rejections use stable `OPENAPI_PARSING_ERROR` messages without reference
+  values, URLs, parser excerpts, source contents, or filesystem paths.
+- **Compatibility and scope**: The frozen analyzer, rule semantics, ground truth, and
+  published evaluation artifacts are unchanged. Internal reference resolution remains the
+  validator/analyzer's responsibility; admission is not a guarantee that a reference exists.
+  Trusted evaluation and direct calls to the frozen validator do not pass through this
+  worker guard and must not be used to process untrusted uploads. Network egress isolation
+  remains required as defense in depth. These budgets bound parser input and structural
+  work but do not provide a hard wall-clock deadline or replace operating-system memory
+  limits. This guard is not a general YAML resource sandbox and does not fix upload
+  admission, process termination, or other outstanding controls.
+
+### 3.10 Multipart Scan Upload Boundary
+- **Threat**: Multipart parsing can spool uploaded file parts before endpoint dependencies run,
+  allowing unauthenticated or concurrent callers to consume temporary storage and memory.
+- **Authentication and parsing**: The scan endpoint has no automatic `File`/`Form` body
+  parameters. FastAPI resolves its authentication dependencies first; the endpoint then
+  parses multipart data with a two-file, one-field limit and closes the form context on exit.
+  The existing multipart field names remain `openapi_file`, `source_archive`, and optional
+  `project_name`.
+- **Request and file budgets**: An ASGI receive wrapper counts actual request bytes as
+  multipart parsing consumes them and returns 413 above `MAX_UPLOAD_BYTES`; declared lengths
+  above the limit are rejected before parsing. `UPLOAD_READ_TIMEOUT_SECONDS` is one total
+  deadline for receiving a request body, so a client cannot keep a slot by sending occasional
+  bytes indefinitely. Existing 64 KiB reads and per-file spec/archive limits remain. The installed
+  Starlette parser does not enforce individual file sizes while spooling, so the total request
+  limit and upload admission bound that temporary-spool exposure; file-specific rejection still
+  occurs while reading the already bounded form upload.
+- **Upload admission**: Finite `MAX_CONCURRENT_UPLOADS` and
+  `MAX_CONCURRENT_UPLOADS_PER_CLIENT` reservations are acquired after authentication and before
+  multipart parsing, then released in `finally` paths. These counters are process-local. The
+  checked-in Docker and Uvicorn commands start one API process and the Compose file defines one
+  API service; deployments with multiple workers or replicas need an external admission limit
+  or shared coordination to obtain a deployment-wide cap.
+- **Cleanup and recovery**: Form uploads are closed on normal, exceptional, cancellation, and
+  disconnect exits. Scan workspace cleanup does not follow a workspace symlink and startup
+  recovery removes workspaces for scan records it marks interrupted. Current recovery assumes the
+  configured single API process; multi-process deployments must coordinate startup recovery so
+  one instance cannot recover another's active scans. OS/container temporary-storage quotas
+  remain an infrastructure control.
+
+### 3.11 Health Checks and Startup Recovery
+- **Liveness**: `/health/live` (and the compatibility path `/health`) reports only that the API
+  process is serving requests. It does not prove database connectivity or successful scan recovery.
+- **Readiness**: `/health/ready` reports ready only after startup recovery marks interrupted scans
+  failed, removes their per-scan workspaces, and a database `SELECT 1` succeeds. Database errors
+  and incomplete startup recovery return HTTP 503 with a generic reason; credentials and driver
+  details are not returned. Compose uses readiness for its API health check.
+- **Recovery failure**: The process remains live to aid diagnosis, but readiness remains false for
+  that process lifetime. Fix the database or workspace issue and restart the API so recovery runs
+  again. Recovery and admission remain single-process controls; this health contract does not
+  establish multi-worker or multi-replica safety.
+
+### 3.12 Scan Submission Rate Limiting
+- **Identity and availability**: `POST /api/v1/scans` uses a fixed-window limit of
+  `SCAN_RATE_LIMIT_REQUESTS` submissions per `SCAN_RATE_LIMIT_WINDOW_SECONDS` for each
+  authenticated `client_id`. API-key and Bearer forms for the same client share one bucket.
+  Missing or invalid credentials share one anonymous bucket, so rotating attacker-controlled
+  tokens or peer addresses cannot allocate buckets or avoid throttling. Anonymous traffic cannot
+  consume the independent quota of a valid client.
+- **Memory bounds and expiry**: The process stores buckets only for configured client IDs and one
+  anonymous identity. Expired timestamps and empty buckets are removed on each scan submission;
+  traffic from unknown credentials cannot grow the map. Adding very many client IDs through
+  trusted configuration increases the possible bucket count accordingly.
+- **Deployment limitation**: Buckets are in process memory, reset on restart, and are not shared
+  across workers or replicas. The deployment remains single-process; multi-worker or multi-replica
+  deployments need a shared rate-limit coordinator for a deployment-wide limit.
+
+### 3.13 Optional local AI and retrieval
+- **Trust boundary**: Scan evidence and user questions may be sent only to the configured local
+  Ollama HTTP endpoint. The application calls `/api/tags` for status, `/api/embed` when an
+  explicitly configured local embedding model is available, and `/api/generate` for an optional
+  explanation. Requests bypass system HTTP proxies. Embedding requests include the question and at
+  most 128 candidate texts truncated to 1,200 characters each; generation receives the selected
+  sources under the context budget. Both paths apply secret-pattern redaction. The provider
+  rejects HTTP redirects to prevent request bodies from being forwarded by a redirect response.
+  The bundled OWASP API Top 10 2023
+  guidance is paraphrased with per-source URLs and CC BY-SA 4.0 attribution metadata.
+- **Local service exposure**: The default endpoint is loopback. Operators can configure Ollama
+  independently to listen on other interfaces; they must restrict that network path and protect
+  it appropriately. `host.docker.internal` is permitted for the documented local Compose setup.
+- **Fallback**: Deterministic scanning and lexical/hashed-vector retrieval do not require Ollama.
+  Ollama unavailability or invalid responses produce a deterministic fallback, not a changed scan
+  finding. Optional AI status does not determine liveness or database readiness.
+- **Retention and limitations**: Embeddings are computed for the current request and not persisted;
+  this version has no durable vector index, source-ingestion lifecycle, or index rebuild interface.
+  The `hybrid-rag-retrieval-v1` fixed query set evaluates retrieval and deterministic response
+  templates only; it does not establish LLM groundedness, broad retrieval quality, or detection
+  performance. Local inference is not a guarantee of privacy if the operator exposes Ollama to an
+  untrusted network.

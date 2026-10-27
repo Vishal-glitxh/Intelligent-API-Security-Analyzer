@@ -10,14 +10,37 @@ from sqlalchemy.orm import Session
 
 
 def _serialize_evidence(evidence_tuple: tuple[Any, ...]) -> list[dict[str, Any]]:
-    return [
-        {
-            "kind": getattr(e, "kind", ""),
-            "message": getattr(e, "message", ""),
-            "location": getattr(e, "location", None),
-        }
-        for e in evidence_tuple
-    ]
+    serialized: list[dict[str, Any]] = []
+    for evidence in evidence_tuple:
+        location = getattr(evidence, "location", None)
+        file_path = getattr(evidence, "file", None) or getattr(location, "file", None)
+        line = getattr(evidence, "line", None) or getattr(location, "line", None)
+        column = getattr(evidence, "column", None) or getattr(location, "column", None)
+        end_line = getattr(location, "end_line", None)
+        end_column = getattr(location, "end_column", None)
+        serialized.append(
+            {
+                "kind": getattr(evidence, "kind", getattr(evidence, "category", "")),
+                "message": getattr(evidence, "message", ""),
+                "file": file_path,
+                "line": line,
+                "column": column,
+                "end_line": end_line,
+                "end_column": end_column,
+                "source_hash": getattr(evidence, "source_hash", None),
+                "provenance": getattr(evidence, "provenance", None),
+                "location": {
+                    "file": file_path,
+                    "line": line,
+                    "column": column,
+                    "end_line": end_line,
+                    "end_column": end_column,
+                }
+                if file_path or line or column
+                else None,
+            }
+        )
+    return serialized
 
 
 def _serialize_finding(finding: Any) -> dict[str, Any]:
@@ -213,8 +236,8 @@ class ScanRepository:
         self.db.refresh(scan_result)
         return scan_result
 
-    def recover_interrupted_scans(self) -> int:
-        """Recover scans stuck in QUEUED or RUNNING states at application startup."""
+    def recover_interrupted_scans(self) -> list[uuid.UUID]:
+        """Mark active records failed and return their ids for workspace reconciliation."""
         stmt = (
             update(Scan)
             .where(Scan.status.in_(["QUEUED", "RUNNING"]))
@@ -223,7 +246,8 @@ class ScanRepository:
                 error_message="SYSTEM_INTERRUPTED: Scan halted by application restart",
                 completed_at=datetime.now(UTC),
             )
+            .returning(Scan.id)
         )
-        result = self.db.execute(stmt)
+        interrupted_ids = list(self.db.scalars(stmt))
         self.db.commit()
-        return int(getattr(result, "rowcount", 0))
+        return interrupted_ids

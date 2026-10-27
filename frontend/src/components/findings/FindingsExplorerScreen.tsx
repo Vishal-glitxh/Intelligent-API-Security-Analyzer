@@ -1,34 +1,26 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
-  ShieldAlert, 
   Search, 
-  Filter, 
   FileCode, 
-  Layers, 
   AlertTriangle, 
   CheckCircle2, 
-  ExternalLink,
-  ChevronRight,
   X,
   RefreshCw,
   Code2,
-  Lock,
-  Compass
+  Sparkles,
+  Send,
 } from 'lucide-react';
 import { api } from '../../services/api';
-import { Finding, FindingSeverity, FindingCategory } from '../../types/findings';
+import { Finding } from '../../types/findings';
 import { SeverityBadge, CategoryBadge, LayerBadge } from '../common/Badge';
 import { redactSecrets } from '../../utils/redact';
+import { ScanAssistantResponse } from '../../types/findings';
 
 interface FindingsExplorerScreenProps {
   scanId: string;
-  onNavigate: (screen: any, scanId?: string) => void;
 }
 
-export const FindingsExplorerScreen: React.FC<FindingsExplorerScreenProps> = ({
-  scanId,
-  onNavigate
-}) => {
+export const FindingsExplorerScreen: React.FC<FindingsExplorerScreenProps> = ({ scanId }) => {
   const [allFindings, setAllFindings] = useState<Finding[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,10 +33,26 @@ export const FindingsExplorerScreen: React.FC<FindingsExplorerScreenProps> = ({
   
   // Selected detail item
   const [activeFinding, setActiveFinding] = useState<Finding | null>(null);
+  const [assistantQuestion, setAssistantQuestion] = useState('');
+  const [assistantResult, setAssistantResult] = useState<ScanAssistantResponse | null>(null);
+  const [assistantLoading, setAssistantLoading] = useState(false);
+  const [assistantError, setAssistantError] = useState<string | null>(null);
 
-  const fetchFindings = async () => {
-    setLoading(true);
-    setError(null);
+  const askAssistant = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (assistantQuestion.trim().length < 3 || assistantLoading) return;
+    setAssistantLoading(true);
+    setAssistantError(null);
+    try {
+      setAssistantResult(await api.askScanAssistant(scanId, assistantQuestion.trim()));
+    } catch (err: any) {
+      setAssistantError(err.message || 'The scan assistant could not answer right now.');
+    } finally {
+      setAssistantLoading(false);
+    }
+  };
+
+  const fetchFindings = useCallback(async () => {
     try {
       const data = await api.getScanFindings(scanId);
       
@@ -57,7 +65,7 @@ export const FindingsExplorerScreen: React.FC<FindingsExplorerScreenProps> = ({
         title: f.title,
         severity: (f.severity || f.spec_findings?.[0]?.severity || f.source_findings?.[0]?.severity || 'MEDIUM') as any,
         category: f.category || f.spec_findings?.[0]?.category || f.source_findings?.[0]?.category,
-        confidence: f.confidence || 0.8,
+        confidence: f.confidence,
         rationale: f.rationale,
         remediation: f.remediation,
         endpoint: f.matched_endpoint?.spec_path,
@@ -76,11 +84,12 @@ export const FindingsExplorerScreen: React.FC<FindingsExplorerScreenProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [scanId]);
 
   useEffect(() => {
-    fetchFindings();
-  }, [scanId]);
+    // eslint-disable-next-line react/set-state-in-effect -- This starts an API request; its state updates run after the request settles.
+    void fetchFindings();
+  }, [fetchFindings]);
 
   // Unique categories for filter dropdown
   const categories = useMemo(() => {
@@ -128,6 +137,99 @@ export const FindingsExplorerScreen: React.FC<FindingsExplorerScreenProps> = ({
 
   return (
     <div className="space-y-4">
+      <section className="rounded-xl border border-teal-900/60 bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950/40 p-4 md:p-5">
+        <div className="flex items-start gap-3">
+          <div className="rounded-lg border border-teal-800/70 bg-teal-950/70 p-2 text-teal-300">
+            <Sparkles className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h2 className="text-sm font-semibold text-slate-100">Evidence assistant</h2>
+              <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-400">Keyless · local retrieval</span>
+            </div>
+            <p className="mt-1 text-xs leading-5 text-slate-400">Ask about this scan. Answers retrieve your findings and endpoint mappings alongside bundled API security guidance.</p>
+          </div>
+        </div>
+        <form onSubmit={askAssistant} className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <input
+            value={assistantQuestion}
+            onChange={(event) => setAssistantQuestion(event.target.value)}
+            maxLength={500}
+            placeholder="e.g. Which endpoints lack object ownership checks?"
+            className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950/80 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-teal-600 focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={assistantQuestion.trim().length < 3 || assistantLoading}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Send className="h-3.5 w-3.5" />
+            {assistantLoading ? 'Searching…' : 'Ask'}
+          </button>
+        </form>
+        {assistantError && <p role="alert" className="mt-3 text-xs text-rose-300">{assistantError}</p>}
+        {assistantResult && (
+          <div className="mt-4 space-y-3 border-t border-slate-800 pt-4">
+            <p className="text-sm leading-6 text-slate-200">{assistantResult.answer}</p>
+            {assistantResult.ai_used && assistantResult.ai_explanation && (
+              <div className="rounded-lg border border-violet-900/60 bg-violet-950/20 p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-300">
+                  Local model explanation · {assistantResult.model_name}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-200">{assistantResult.ai_explanation}</p>
+                {assistantResult.recommendations.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Suggested next steps · verify against evidence</p>
+                    <ul className="mt-1 list-disc space-y-1 pl-5 text-xs text-slate-300">
+                      {assistantResult.recommendations.map((recommendation, index) => (
+                        <li key={`${index}-${recommendation}`}>{recommendation}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+            {assistantResult.sources.length > 0 && (
+              <section aria-label="Retrieved evidence sources" className="space-y-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                  Retrieved sources · {assistantResult.sources.length}
+                </p>
+                <div className="grid gap-2 md:grid-cols-2">
+                  {assistantResult.sources.map((source) => {
+                    const citedByModel = assistantResult.cited_source_ids.includes(source.id);
+                    return (
+                      <article
+                        key={source.id}
+                        className={`rounded-lg border p-3 ${citedByModel ? 'border-violet-800/70 bg-violet-950/20' : 'border-slate-800 bg-slate-950/60'}`}
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <p className="text-xs font-semibold text-teal-200">{source.title}</p>
+                          <span className={`rounded-full border px-2 py-0.5 text-[9px] font-medium ${citedByModel ? 'border-violet-800 text-violet-300' : 'border-slate-700 text-slate-500'}`}>
+                            {citedByModel ? 'Cited by model' : 'Retrieved context'}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-[11px] leading-5 text-slate-400">{redactSecrets(source.excerpt)}</p>
+                        <p className="mt-2 text-[10px] text-slate-500">
+                          Source: {source.source_url ? (
+                            <a href={source.source_url} target="_blank" rel="noreferrer" className="underline decoration-slate-700 underline-offset-2 hover:text-slate-300">
+                              {source.citation}
+                            </a>
+                          ) : source.citation}
+                          {source.license ? ` · ${source.license}` : ''}
+                        </p>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+            <p className="text-[10px] text-slate-500">
+              Local AI: {assistantResult.ai_status}{assistantResult.model_name ? ` · ${assistantResult.model_name}` : ''} · {assistantResult.notice}
+            </p>
+          </div>
+        )}
+      </section>
+
       {/* Top Filter & Search Bar */}
       <div className="bg-slate-900 border border-slate-800 p-4 rounded-lg space-y-3">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -339,7 +441,7 @@ export const FindingsExplorerScreen: React.FC<FindingsExplorerScreenProps> = ({
                         CWE: <span className="text-slate-300">{activeFinding.cwe_id}</span>
                       </div>
                     )}
-                    {activeFinding.confidence && (
+                    {activeFinding.confidence !== undefined && activeFinding.confidence !== null && (
                       <div>
                         Confidence: <span className="text-slate-300">{activeFinding.confidence}</span>
                       </div>

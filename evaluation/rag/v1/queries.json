@@ -1,0 +1,67 @@
+{
+  "protocol_version": "hybrid-rag-retrieval-v1",
+  "description": "Reviewed deterministic retrieval conformance set; does not evaluate LLM answer quality or scanner detection performance.",
+  "k": 5,
+  "queries": [
+    {
+      "query_id": "object-level-authorization",
+      "query": "Which API guidance covers object identifiers and ownership checks?",
+      "relevant_source_ids": ["owasp-api1"],
+      "support_mode": "guidance"
+    },
+    {
+      "query_id": "property-level-authorization",
+      "query": "How should writable fields and sensitive response properties be restricted?",
+      "relevant_source_ids": ["owasp-api3"],
+      "support_mode": "guidance"
+    },
+    {
+      "query_id": "authentication-and-function-access",
+      "query": "What authentication and authorization checks protect API operations?",
+      "relevant_source_ids": ["owasp-api2", "owasp-api5"],
+      "support_mode": "guidance"
+    },
+    {
+      "query_id": "resource-consumption",
+      "query": "How can request limits, pagination, timeouts and quotas reduce resource abuse?",
+      "relevant_source_ids": ["owasp-api4"],
+      "support_mode": "guidance"
+    },
+    {
+      "query_id": "server-side-request-forgery",
+      "query": "How should caller-controlled URLs be validated to prevent SSRF?",
+      "relevant_source_ids": ["owasp-api7"],
+      "support_mode": "guidance"
+    },
+    {
+      "query_id": "security-misconfiguration",
+      "query": "What should be reviewed for permissive CORS, debug mode and default credentials?",
+      "relevant_source_ids": ["owasp-api8"],
+      "support_mode": "guidance"
+    },
+    {
+      "query_id": "scan-evidence-and-guidance",
+      "query": "What scan evidence supports the missing ownership check?",
+      "source_findings": [
+        {
+          "rule_id": "API-AUTHZ-001",
+          "title": "Missing ownership check for book lookup",
+          "severity": "high",
+          "endpoint": "GET /books/{book_id}",
+          "rationale": "The handler loads a book from a caller-controlled identifier without checking ownership.",
+          "remediation": "Compare the object owner to the authenticated principal.",
+          "evidence": []
+        }
+      ],
+      "relevant_source_ids": ["finding-source code-0", "owasp-api1"],
+      "support_mode": "finding",
+      "expected_answer_fragments": ["Missing ownership check for book lookup", "GET /books/{book_id}"]
+    },
+    {
+      "query_id": "unsupported-topic-abstention",
+      "query": "What is the weather on Mars?",
+      "relevant_source_ids": [],
+      "support_mode": "abstention"
+    }
+  ]
+}

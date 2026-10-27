@@ -8,12 +8,8 @@ import {
   ShieldAlert, 
   GitCompare, 
   ArrowRight,
-  FolderArchive,
-  Layers,
-  FileCode,
   Calendar,
   KeyRound,
-  ExternalLink
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { ScanResponse, ScanResultsResponse } from '../../types/scan';
@@ -22,13 +18,11 @@ import { StatusBadge } from '../common/Badge';
 interface ScanDetailsScreenProps {
   scanId: string;
   onNavigate: (screen: any, scanId?: string) => void;
-  onSelectScan: (scanId: string) => void;
 }
 
 export const ScanDetailsScreen: React.FC<ScanDetailsScreenProps> = ({
   scanId,
-  onNavigate,
-  onSelectScan
+  onNavigate
 }) => {
   const [scan, setScan] = useState<ScanResponse | null>(null);
   const [results, setResults] = useState<ScanResultsResponse | null>(null);
@@ -69,7 +63,7 @@ export const ScanDetailsScreen: React.FC<ScanDetailsScreenProps> = ({
   // Initial fetch and polling logic with cleanup
   useEffect(() => {
     isMountedRef.current = true;
-    setLoading(true);
+    // eslint-disable-next-line react/set-state-in-effect -- This starts the initial API request; its state updates run after it settles.
     fetchScanData();
 
     // Poll while QUEUED or RUNNING

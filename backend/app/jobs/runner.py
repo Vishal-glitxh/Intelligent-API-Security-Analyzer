@@ -1,10 +1,11 @@
+import multiprocessing
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from concurrent.futures import Future, ProcessPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -82,6 +83,94 @@ def _process_worker_entrypoint(
         )
 
 
+def _process_worker_send_result(
+    sender: Any,
+    job_id: str,
+    func: Callable[[Any], Any],
+    input_data: Any,
+    max_memory_bytes: int | None,
+) -> None:
+    """Execute one job and return its result over a private process pipe."""
+    try:
+        sender.send(_process_worker_entrypoint(job_id, func, input_data, max_memory_bytes))
+    finally:
+        sender.close()
+
+
+def _run_process_job(
+    job_id: str,
+    func: Callable[[Any], Any],
+    input_data: Any,
+    max_memory_bytes: int | None,
+    timeout: float | None,
+) -> JobResult[Any]:
+    """Run an independently killable child and wait for its confirmed exit."""
+    context = multiprocessing.get_context("spawn")
+    receiver, sender = context.Pipe(duplex=False)
+    process = context.Process(
+        target=_process_worker_send_result,
+        args=(sender, job_id, func, input_data, max_memory_bytes),
+        name=f"scan-worker-{job_id}",
+    )
+    try:
+        process.start()
+    except Exception as exc:
+        receiver.close()
+        sender.close()
+        return JobResult(
+            job_id=job_id,
+            status=JobStatus.FAILED,
+            error=f"ProcessStartError: {exc}",
+            completed_at=datetime.now(UTC),
+        )
+    sender.close()
+
+    try:
+        if not receiver.poll(timeout):
+            # Recheck after poll to avoid racing a worker that completed exactly at
+            # the deadline. A timed-out worker is terminated before returning so the
+            # caller cannot clean its workspace while it is still using it.
+            if receiver.poll(0):
+                result = receiver.recv()
+                process.join()
+                return cast(JobResult[Any], result)
+            if process.is_alive():
+                process.terminate()
+                process.join(timeout=0.5)
+                if process.is_alive():
+                    process.kill()
+                    process.join()
+            else:
+                process.join()
+            return JobResult(
+                job_id=job_id,
+                status=JobStatus.FAILED,
+                error=f"TimeoutError: Job execution timed out after {timeout}s",
+                completed_at=datetime.now(UTC),
+            )
+
+        try:
+            result = receiver.recv()
+        except EOFError:
+            process.join()
+            return JobResult(
+                job_id=job_id,
+                status=JobStatus.FAILED,
+                error=f"ProcessExitError: Worker exited with code {process.exitcode}",
+                completed_at=datetime.now(UTC),
+            )
+        process.join()
+        return cast(JobResult[Any], result)
+    finally:
+        receiver.close()
+        if process.is_alive():
+            process.terminate()
+            process.join(timeout=0.5)
+            if process.is_alive():
+                process.kill()
+            process.join()
+
+
 class JobRunner(ABC):
     """Abstract boundary for executing CPU-bound or background analysis jobs."""
 
@@ -108,10 +197,10 @@ class JobRunner(ABC):
 
 
 class LocalProcessJobRunner(JobRunner):
-    """Executes CPU-bound analysis jobs in isolated OS processes using a process pool."""
+    """Executes bounded jobs in independently killable OS processes."""
 
     def __init__(self, max_workers: int = 2, max_memory_bytes: int | None = None) -> None:
-        self._executor = ProcessPoolExecutor(max_workers=max_workers)
+        self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self._max_memory_bytes = max_memory_bytes
 
     def submit(
@@ -121,11 +210,12 @@ class LocalProcessJobRunner(JobRunner):
         input_data: Any,
     ) -> Future[JobResult[Any]]:
         return self._executor.submit(
-            _process_worker_entrypoint,
+            _run_process_job,
             job_id,
             func,
             input_data,
             self._max_memory_bytes,
+            None,
         )
 
     def run(
@@ -135,14 +225,21 @@ class LocalProcessJobRunner(JobRunner):
         input_data: Any,
         timeout: float | None = None,
     ) -> JobResult[Any]:
-        future = self.submit(job_id, func, input_data)
+        future = self._executor.submit(
+            _run_process_job,
+            job_id,
+            func,
+            input_data,
+            self._max_memory_bytes,
+            timeout,
+        )
         try:
-            return future.result(timeout=timeout)
+            return future.result()
         except Exception as exc:
             return JobResult(
                 job_id=job_id,
                 status=JobStatus.FAILED,
-                error=str(exc),
+                error=f"ProcessExecutionError: {exc}",
                 completed_at=datetime.now(UTC),
             )
 

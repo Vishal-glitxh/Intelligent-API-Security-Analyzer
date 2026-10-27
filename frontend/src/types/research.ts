@@ -34,20 +34,28 @@ export interface ConfidenceInterval {
   upper: number | null;
   confidence_level: number;
   method: string;
+  sample_size?: number;
 }
 
 export interface ModeComparison {
-  comparison: string;
+  comparison?: string;
   metric: string;
-  difference: number;
-  ci_lower: number;
-  ci_upper: number;
+  difference?: number;
+  ci_lower?: number;
+  ci_upper?: number;
   p_value?: number;
-  significant: boolean;
+  significant?: boolean;
+  baseline_mode?: string;
+  comparison_mode?: string;
+  baseline_value?: number | null;
+  comparison_value?: number | null;
+  absolute_difference?: number;
+  statistically_significant?: boolean;
+  notes?: string;
 }
 
 export interface ErrorTaxonomyItem {
-  id: string;
+  id?: string;
   category: string;
   error_type: string;
   frequency: number;
@@ -62,6 +70,10 @@ export interface ResearchBenchmarksData {
   phase7?: {
     confidence_intervals?: { intervals: ConfidenceInterval[] } | ConfidenceInterval[] | null;
     mode_comparisons?: { comparisons: ModeComparison[] } | ModeComparison[] | null;
-    error_taxonomy?: { taxonomy: ErrorTaxonomyItem[] } | ErrorTaxonomyItem[] | null;
+    error_analysis?: {
+      total_errors_analyzed?: number;
+      error_category_counts_by_mode?: Record<string, Record<string, number>>;
+      error_details?: Array<Record<string, unknown>>;
+    } | null;
   } | null;
 }

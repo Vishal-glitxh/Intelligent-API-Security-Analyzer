@@ -67,3 +67,39 @@ export interface ScanFindingsResponse {
   source_only_findings: Finding[];
   correlated_findings: (CorrelatedFinding | Finding)[];
 }
+
+export interface ScanAssistantResponse {
+  scan_id: string;
+  answer: string;
+  sources: Array<{
+    id: string;
+    title: string;
+    source_type: string;
+    citation: string;
+    source_url?: string | null;
+    license?: string | null;
+    endpoint?: string | null;
+    excerpt: string;
+    relevance: number;
+  }>;
+  retrieval: string;
+  external_network_used: boolean;
+  notice: string;
+  ai_status: 'Available' | 'Unavailable' | 'Disabled';
+  model_name?: string | null;
+  ai_used: boolean;
+  ai_explanation?: string | null;
+  recommendations: string[];
+  /** IDs selected by the model and accepted against this response's retrieved sources. */
+  cited_source_ids: string[];
+}
+
+export interface LocalAIStatus {
+  status: 'Available' | 'Unavailable' | 'Disabled';
+  model_name?: string | null;
+  available_models: string[];
+  embedding_model?: string | null;
+  embedding_available: boolean;
+  retrieval_available: boolean;
+  message: string;
+}

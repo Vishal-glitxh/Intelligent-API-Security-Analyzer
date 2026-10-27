@@ -1,0 +1,69 @@
+{
+  "protocol_version": "connexion-contract-assisted-v1",
+  "cases": [
+    {
+      "case_id": "direct-app-registration",
+      "source_files": {
+        "config.py": "import connexion\napp = connexion.App(__name__)\napp.add_api('openapi.yaml')\n",
+        "handlers/books.py": "def list_books():\n    return []\n"
+      },
+      "operations": [
+        {"method": "get", "path": "/books", "operation_id": "handlers.books.list_books"}
+      ],
+      "expected_registration": true,
+      "expected_mappings": [
+        {"method": "get", "path": "/books", "handler": "list_books", "source_file": "handlers/books.py", "line": 1}
+      ]
+    },
+    {
+      "case_id": "import-and-assignment-aliases",
+      "source_files": {
+        "config.py": "from connexion import App as ConnexionApp\nservice = ConnexionApp(__name__)\napplication = service\napplication.add_api('openapi.yaml')\n",
+        "handlers/books.py": "def list_books():\n    return []\n"
+      },
+      "operations": [
+        {"method": "get", "path": "/books", "operation_id": "handlers.books.list_books"}
+      ],
+      "expected_registration": true,
+      "expected_mappings": [
+        {"method": "get", "path": "/books", "handler": "list_books", "source_file": "handlers/books.py", "line": 1}
+      ]
+    },
+    {
+      "case_id": "unrelated-object-add-api",
+      "source_files": {
+        "config.py": "import connexion\napp = connexion.App(__name__)\nunrelated = object()\nunrelated.add_api('openapi.yaml')\n",
+        "handlers/books.py": "def list_books():\n    return []\n"
+      },
+      "operations": [
+        {"method": "get", "path": "/books", "operation_id": "handlers.books.list_books"}
+      ],
+      "expected_registration": false,
+      "expected_mappings": []
+    },
+    {
+      "case_id": "ambiguous-dynamic-factory",
+      "source_files": {
+        "config.py": "import connexion\napp = build_app()\napp.add_api('openapi.yaml')\n",
+        "handlers/books.py": "def list_books():\n    return []\n"
+      },
+      "operations": [
+        {"method": "get", "path": "/books", "operation_id": "handlers.books.list_books"}
+      ],
+      "expected_registration": false,
+      "expected_mappings": []
+    },
+    {
+      "case_id": "registered-but-unmatched-handler",
+      "source_files": {
+        "config.py": "import connexion\napp = connexion.App(__name__)\napp.add_api('openapi.yaml')\n",
+        "handlers/books.py": "def list_books():\n    return []\n"
+      },
+      "operations": [
+        {"method": "get", "path": "/books", "operation_id": "handlers.books.missing_handler"}
+      ],
+      "expected_registration": true,
+      "expected_mappings": []
+    }
+  ]
+}

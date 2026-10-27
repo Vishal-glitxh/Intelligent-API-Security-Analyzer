@@ -13,6 +13,7 @@ from app.analysis.rules.registry import RuleRegistry
 from app.analysis.source import normalize_source_tree
 from app.analysis.source.loader import load_source_from_disk
 from app.schemas.worker import AnalysisWorkerInput, AnalysisWorkerOutput
+from app.services.specification_guard import guard_specification_references
 
 
 def sanitize_error_message(err: Exception, default_prefix: str) -> str:
@@ -58,6 +59,7 @@ def execute_analysis_worker(input_data: AnalysisWorkerInput) -> AnalysisWorkerOu
 
     # 1. Phase 2 — OpenAPI Analysis
     try:
+        guard_specification_references(input_data.spec_content)
         loaded_spec = load_openapi_spec(input_data.spec_content)
         validate_openapi_spec(loaded_spec.raw_data)
         normalized_spec = normalize_openapi_spec(loaded_spec)
@@ -81,7 +83,7 @@ def execute_analysis_worker(input_data: AnalysisWorkerInput) -> AnalysisWorkerOu
     try:
         source_dir = Path(input_data.source_dir)
         loaded_source = load_source_from_disk(source_dir)
-        source_tree = normalize_source_tree(loaded_source)
+        source_tree = normalize_source_tree(loaded_source, specification=normalized_spec)
 
         source_context = AnalysisContext(source=source_tree)
         source_registry = RuleRegistry()

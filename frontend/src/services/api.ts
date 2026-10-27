@@ -1,5 +1,5 @@
 import { Scan, ScanCreateResponse, ScanResultsResponse } from '../types/scan';
-import { ScanFindingsResponse } from '../types/findings';
+import { LocalAIStatus, ScanAssistantResponse, ScanFindingsResponse } from '../types/findings';
 import { ResearchBenchmarksData } from '../types/research';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
@@ -124,6 +124,36 @@ export const api = {
       },
     });
     return handleResponse<ScanFindingsResponse>(res);
+  },
+
+  async askScanAssistant(scanId: string, question: string): Promise<ScanAssistantResponse> {
+    const resolved = resolveHeaders();
+    const res = await fetch(`${API_BASE_URL}/scans/${scanId}/assistant`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...resolved,
+      },
+      body: JSON.stringify({ question }),
+    });
+    return handleResponse<ScanAssistantResponse>(res);
+  },
+
+  async getLocalAIStatus(): Promise<LocalAIStatus> {
+    const resolved = resolveHeaders();
+    const res = await fetch(`${API_BASE_URL}/ai/status`, {
+      headers: { Accept: 'application/json', ...resolved },
+    });
+    return handleResponse<LocalAIStatus>(res);
+  },
+
+  async getAuthSession(): Promise<{ authenticated: boolean; auth_mode: string }> {
+    const resolved = resolveHeaders();
+    const res = await fetch(`${API_BASE_URL}/ai/session`, {
+      headers: { Accept: 'application/json', ...resolved },
+    });
+    return handleResponse<{ authenticated: boolean; auth_mode: string }>(res);
   },
 
   async createScan(

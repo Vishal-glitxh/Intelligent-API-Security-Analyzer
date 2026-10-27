@@ -71,7 +71,7 @@ def main() -> None:
     print("==========================================================================")
     print(f"        INTELLIGENT API SECURITY ANALYZER — BENCHMARK ({b_name})")
     print("==========================================================================")
-    print(f"Executing frozen Phase 1-5 analyzer across {args.benchmark} partition in 3 modes...\n")
+    print(f"Executing current Phase 1-5 analyzer across {args.benchmark} partition in 3 modes...\n")
 
     report_data = run_evaluation_experiment(
         runs_dir=runs_dir,

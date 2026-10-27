@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import { Key, Shield, CheckCircle2, AlertCircle, Eye, EyeOff, X } from 'lucide-react';
 import { api } from '../../services/api';
 
@@ -42,19 +42,13 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen: propIsOpen, on
     }
   };
 
-  const handleUseDevKey = () => {
-    const devKey = 'dev-insecure-api-access-token-do-not-use-in-production';
-    setInputVal(devKey);
-    setApiKey(devKey);
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4">
-      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-lg shadow-2xl p-6 text-slate-100">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-sm p-4">
+      <div className="api-modal w-full max-w-md rounded-2xl border p-6" role="dialog" aria-modal="true" aria-labelledby="api-key-title">
         <div className="flex items-center justify-between pb-4 border-b border-slate-800">
           <div className="flex items-center gap-2">
             <Key className="w-5 h-5 text-cyan-400" />
-            <h2 className="text-base font-semibold text-slate-100">API Credentials</h2>
+            <h2 id="api-key-title" className="api-modal-title text-base font-semibold">Connect your API</h2>
           </div>
           <button
             onClick={handleClose}
@@ -66,19 +60,13 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen: propIsOpen, on
 
         <div className="mt-4 space-y-4">
           <p className="text-xs text-slate-400 leading-relaxed">
-            Provide the API access token configured in the analyzer backend. Protected scan operations require client authentication.
+            A cloud AI key is never required. On a loopback development server, access can be enabled without a token; other deployments require the backend-configured API access token.
           </p>
 
           <div className="space-y-1.5">
             <label className="text-xs font-mono text-slate-300 flex items-center justify-between">
               <span>X-API-Key / Bearer Token</span>
-              <button
-                type="button"
-                onClick={handleUseDevKey}
-                className="text-xs text-cyan-400 hover:underline cursor-pointer"
-              >
-                Use Dev Token
-              </button>
+              <span className="text-[10px] text-slate-500">Optional only in local development mode</span>
             </label>
             <div className="relative">
               <input

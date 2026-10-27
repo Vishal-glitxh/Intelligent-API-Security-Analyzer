@@ -1,3 +1,5 @@
+from app.analysis.context import NormalizedOpenAPI
+from app.analysis.source.connexion import extract_connexion_endpoints, has_connexion_registration
 from app.analysis.source.extractor import extract_function_security_evidence
 from app.analysis.source.fastapi import extract_fastapi_endpoints
 from app.analysis.source.flask import extract_flask_endpoints
@@ -24,20 +26,28 @@ from app.analysis.source.parser import ParsedModule, parse_source_file
 from app.analysis.source.secrets import extract_secrets
 
 
-def normalize_source_tree(loaded: LoadedSourceTree) -> NormalizedSourceTree:
+def normalize_source_tree(
+    loaded: LoadedSourceTree,
+    specification: NormalizedOpenAPI | None = None,
+) -> NormalizedSourceTree:
     """Processes loaded source files into a unified, normalized, immutable NormalizedSourceTree."""
     normalized_files: list[NormalizedSourceFile] = []
     all_endpoints: list[NormalizedSourceEndpoint] = []
     all_evidence: list[SourceSecurityEvidence] = []
     all_diagnostics: list[SourceDiagnostic] = list(loaded.diagnostics)
 
-    for loaded_file in loaded.files:
-        # 1. Parse Python source into AST
-        parsed = parse_source_file(
+    parsed_modules = tuple(
+        parse_source_file(
             content=loaded_file.content,
             file_path=loaded_file.relative_path,
             content_hash=loaded_file.content_hash,
         )
+        for loaded_file in loaded.files
+    )
+    connexion_registered = any(has_connexion_registration(parsed) for parsed in parsed_modules)
+
+    for loaded_file, parsed in zip(loaded.files, parsed_modules, strict=True):
+        # 1. Parse Python source into AST (all modules parsed before framework registration scan).
         all_diagnostics.extend(parsed.diagnostics)
 
         # 2. Detect framework
@@ -49,6 +59,14 @@ def normalize_source_tree(loaded: LoadedSourceTree) -> NormalizedSourceTree:
             endpoints = extract_fastapi_endpoints(parsed)
         elif framework == FrameworkType.FLASK:
             endpoints = extract_flask_endpoints(parsed)
+
+        if connexion_registered and specification is not None:
+            existing = {(endpoint.method, endpoint.path) for endpoint in endpoints}
+            endpoints.extend(
+                endpoint
+                for endpoint in extract_connexion_endpoints(parsed, specification)
+                if (endpoint.method, endpoint.path) not in existing
+            )
 
         # 4. For each endpoint, enrich with function-level security evidence
         enriched_endpoints: list[NormalizedSourceEndpoint] = []
@@ -114,7 +132,11 @@ def normalize_source_tree(loaded: LoadedSourceTree) -> NormalizedSourceTree:
             path=loaded_file.relative_path,
             content_hash=loaded_file.content_hash,
             language="python",
-            framework=framework.value,
+            framework=(
+                "connexion"
+                if any(endpoint.framework == "connexion" for endpoint in enriched_endpoints)
+                else framework.value
+            ),
             detected_routes=tuple(f"{ep.method.upper()} {ep.path}" for ep in enriched_endpoints),
             endpoints=tuple(enriched_endpoints),
             evidence=tuple(file_evidence),

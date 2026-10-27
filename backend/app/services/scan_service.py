@@ -23,6 +23,27 @@ SCRATCH_SCANS_DIR = Path("scratch/scans")
 _shared_job_runner: JobRunner | None = None
 
 
+def cleanup_scan_workspace(scan_id: uuid.UUID) -> bool:
+    """Remove one scan's workspace without following a workspace symlink."""
+    root = SCRATCH_SCANS_DIR.resolve()
+    workspace = root / str(scan_id)
+    if workspace.parent != root:
+        logger.warning("Refusing to remove scan workspace outside scratch root for %s", scan_id)
+        return False
+    try:
+        if workspace.is_symlink():
+            # Unlink only the alias; never resolve or recursively remove its target.
+            workspace.unlink()
+            logger.warning("Removed symlink instead of following scan workspace for %s", scan_id)
+            return True
+        if workspace.exists():
+            shutil.rmtree(workspace)
+    except OSError, shutil.Error:
+        logger.warning("Failed to clean temporary workspace for scan %s", scan_id, exc_info=True)
+        return False
+    return True
+
+
 def get_default_job_runner() -> JobRunner:
     """Retrieve or initialize the bounded process job runner singleton."""
     global _shared_job_runner
@@ -77,11 +98,12 @@ class ScanService:
 
         # 2. Input Validation against authoritative configuration
         validate_spec_upload(spec_filename, spec_bytes, settings.max_spec_bytes)
-        validate_source_archive_filename(source_filename)
+        if source_bytes:
+            validate_source_archive_filename(source_filename)
 
         spec_content = spec_bytes.decode("utf-8", errors="replace")
         spec_hash = hashlib.sha256(spec_bytes).hexdigest()
-        source_hash = hashlib.sha256(source_bytes).hexdigest()
+        source_hash = hashlib.sha256(source_bytes).hexdigest() if source_bytes else None
 
         # 3. Create Scan ORM Record
         scan = self.repo.create_scan(
@@ -93,26 +115,46 @@ class ScanService:
             client_id=client_id,
         )
         scan_id = scan.id
-        workspace_dir = (SCRATCH_SCANS_DIR / str(scan_id)).resolve()
-        workspace_dir.mkdir(parents=True, exist_ok=True)
+        workspace_dir = SCRATCH_SCANS_DIR / str(scan_id)
         source_dir = workspace_dir / "source"
 
         try:
-            # 4. Extract Archive safely
-            extract_source_archive(
-                source_bytes,
-                source_dir,
-                max_archive_size_bytes=settings.max_archive_bytes,
-                max_uncompressed_total_bytes=settings.max_uncompressed_bytes,
-                max_file_count=settings.max_files_per_scan,
-                max_individual_file_bytes=settings.max_individual_file_bytes,
-            )
+            workspace_dir.mkdir(parents=True, exist_ok=True)
+            if source_bytes:
+                # 4. Extract Archive safely
+                extract_source_archive(
+                    source_bytes,
+                    source_dir,
+                    max_archive_size_bytes=settings.max_archive_bytes,
+                    max_uncompressed_total_bytes=settings.max_uncompressed_bytes,
+                    max_file_count=settings.max_files_per_scan,
+                    max_individual_file_bytes=settings.max_individual_file_bytes,
+                )
+            else:
+                source_dir.mkdir(parents=True, exist_ok=True)
         except Exception as e:
-            # Cleanup workspace on extraction failure
-            shutil.rmtree(workspace_dir, ignore_errors=True)
+            cleanup_scan_workspace(scan_id)
             sanitized_err = sanitize_error_message(e, "UNTRUSTED_ARCHIVE_REJECTED")
-            self.repo.update_status(scan_id, "FAILED", error_message=sanitized_err)
+            try:
+                self.repo.update_status(scan_id, "FAILED", error_message=sanitized_err)
+            except Exception:
+                logger.error(
+                    "Failed to persist rejected upload status for %s", scan_id, exc_info=True
+                )
             raise ValueError(sanitized_err) from e
+        except BaseException:
+            cleanup_scan_workspace(scan_id)
+            try:
+                self.repo.update_status(
+                    scan_id,
+                    "FAILED",
+                    error_message="SYSTEM_INTERRUPTED: Scan submission was interrupted.",
+                )
+            except Exception:
+                logger.error(
+                    "Failed to persist interrupted upload status for %s", scan_id, exc_info=True
+                )
+            raise
 
         # 5. Prepare Worker Input DTO
         worker_input = AnalysisWorkerInput(
@@ -122,7 +164,7 @@ class ScanService:
         )
 
         # 6. Process Job Execution
-        self._execute_scan_job(scan_id, worker_input, workspace_dir)
+        self._execute_scan_job(scan_id, worker_input)
 
         return scan_id
 
@@ -130,13 +172,11 @@ class ScanService:
         self,
         scan_id: uuid.UUID,
         worker_input: AnalysisWorkerInput,
-        workspace_dir: Path,
     ) -> None:
         """Run analysis worker and persist output, ensuring workspace cleanup."""
-        self.repo.update_status(scan_id, "RUNNING")
-
         timeout_sec = settings.scan_timeout_seconds
         try:
+            self.repo.update_status(scan_id, "RUNNING")
             job_result = self.job_runner.run(
                 job_id=str(scan_id),
                 func=execute_analysis_worker,
@@ -192,14 +232,6 @@ class ScanService:
 
         finally:
             # Guaranteed cleanup of sandboxed temporary workspace
-            try:
-                if workspace_dir.exists():
-                    shutil.rmtree(workspace_dir)
-            except Exception as cleanup_err:
-                logger.warning(
-                    "Failed to clean temporary workspace for scan %s: %s",
-                    scan_id,
-                    cleanup_err,
-                )
+            cleanup_scan_workspace(scan_id)
             if self._owns_job_runner and isinstance(self.job_runner, LocalProcessJobRunner):
                 self.job_runner.shutdown(wait=True)

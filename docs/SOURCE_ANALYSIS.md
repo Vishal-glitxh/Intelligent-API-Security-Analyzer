@@ -71,6 +71,7 @@ The parsing engine (`backend/app/analysis/source/parser.py`) combines:
 The analyzer currently supports:
 * **FastAPI** (`backend/app/analysis/source/fastapi.py`)
 * **Flask** (`backend/app/analysis/source/flask.py`)
+* **Connexion** (`backend/app/analysis/source/connexion.py`) when an OpenAPI document is supplied alongside a source tree
 * **Generic Python** (`backend/app/analysis/source/framework.py`)
 
 ### Endpoint Extraction Details
@@ -86,6 +87,11 @@ The analyzer currently supports:
 * Resolves `Blueprint("api", __name__, url_prefix="/...")` prefixes.
 * Normalizes Flask-style route parameters (`/users/<int:user_id>` or `/users/<user_id>`) into canonical OpenAPI-compatible bracket notation (`/users/{user_id}`).
 * Detects `@login_required` authentication decorators.
+
+#### Connexion
+* Detects a static Connexion `add_api(...)` registration in the source tree and maps dotted OpenAPI `operationId` values to matching Python module and handler names.
+* Uses the already parsed OpenAPI specification and Python AST only; it does not import or execute project code or resolve dynamic registration.
+* Recognizes a small set of authentication helper calls in mapped handlers as medium-strength evidence. A call's presence does not prove that its result is enforced correctly.
 
 ### Deterministic Endpoint Mapping (Preparation for Phase 4)
 Each extracted endpoint maintains a bidirectional, deterministic mapping:
@@ -187,7 +193,7 @@ Formal calibration and empirical validation will be conducted during experimenta
 
 ## 11. Known Limitations
 
-1. **Dynamic Route Registration**: Dynamic loops calling `app.add_api_route()` or dynamic decorator wrapping are not resolved. The analyzer flags them as unextractable rather than guessing.
+1. **Dynamic Route Registration**: Dynamic loops calling route-registration APIs, dynamic decorator wrapping, and Connexion operation IDs without an explicit dotted module path are not resolved. The analyzer avoids guessing.
 2. **Global / Ingress Authentication**: Gateway-level authentication (Kong, Envoy, Cloudflare Access) cannot be recovered from source code alone. This is an intentional design boundary to be addressed via Phase 4 cross-layer correlation.
 3. **Inter-Procedural Data Flow**: Complex multi-hop pointer aliasing and dependency injection across remote microservices are outside static AST scope.
 

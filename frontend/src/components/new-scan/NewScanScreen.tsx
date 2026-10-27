@@ -1,6 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
-  UploadCloud, 
   FileCode, 
   FileArchive, 
   AlertCircle, 
@@ -11,8 +10,9 @@ import {
   Loader2
 } from 'lucide-react';
 import { api } from '../../services/api';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import { ApiKeyModal } from '../common/ApiKeyModal';
+import { LocalAIStatus } from '../../types/findings';
 
 // Backend constraints
 const MAX_SPEC_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -32,6 +32,8 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
   const [projectName, setProjectName] = useState('');
   const [specFile, setSpecFile] = useState<File | null>(null);
   const [archiveFile, setArchiveFile] = useState<File | null>(null);
+  const [localAIStatus, setLocalAIStatus] = useState<LocalAIStatus | null>(null);
+  const visibleLocalAIStatus = isAuthenticated ? localAIStatus : null;
   
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,6 +42,17 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
 
   const specInputRef = useRef<HTMLInputElement>(null);
   const archiveInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let active = true;
+    void api.getLocalAIStatus().then((result) => {
+      if (active) setLocalAIStatus(result);
+    }).catch(() => {
+      if (active) setLocalAIStatus(null);
+    });
+    return () => { active = false; };
+  }, [isAuthenticated]);
 
   // Client-side validations
   const handleSpecSelect = (file: File) => {
@@ -97,12 +110,7 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
       return;
     }
 
-    if (!archiveFile) {
-      setValidationError('Please select a source code ZIP archive.');
-      return;
-    }
-
-    if (specFile.size + archiveFile.size > MAX_TOTAL_BYTES) {
+    if (specFile.size + (archiveFile?.size ?? 0) > MAX_TOTAL_BYTES) {
       setValidationError('Total upload payload exceeds the 50 MB server limit.');
       return;
     }
@@ -114,7 +122,7 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
 
     setIsSubmitting(true);
     try {
-      const response = await api.createScan(specFile, archiveFile, projectName.trim() || undefined);
+      const response = await api.createScan(specFile, archiveFile ?? undefined, projectName.trim() || undefined);
       const createdId = response.scan_id || response.id || '';
       onSelectScan(createdId);
       onNavigate('scan-details', createdId);
@@ -126,61 +134,53 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Intro card */}
-      <div className="bg-slate-900 border border-slate-800 p-6 rounded-lg">
-        <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
-          <UploadCloud className="h-5 w-5 text-teal-400" />
-          <span>Initiate Dual-Layer API Security Analysis</span>
-        </h2>
-        <p className="text-xs text-slate-400 mt-1">
-          Upload your API specification alongside application source code. The analyzer will perform spec-level rule checking, AST/regex source scanning, and deterministic endpoint correlation.
-        </p>
+    <div className="upload-page">
+      <section className="upload-intro">
+        <div className="page-eyebrow"><span className="page-eyebrow-mark" /> New assessment <span aria-hidden="true">·</span> static analysis</div>
+        <h2 className="page-heading">Bring your API into focus.</h2>
+        <p className="page-description">Analyze an OpenAPI contract on its own, or add a source archive to compare implementation evidence. The scan reports specification, source, and correlated results where available.</p>
 
-        {/* Limit notice */}
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
-          <div className="p-2.5 rounded bg-slate-950/60 border border-slate-800">
-            <span className="text-slate-500 block text-[10px] uppercase">OpenAPI Specification</span>
-            <span className="text-teal-400 font-semibold">Max 5 MB</span>
-            <span className="text-slate-500 block text-[10px]">.json, .yaml, .yml</span>
+        <div className="upload-limit-grid">
+          <div className="upload-limit">
+            <span className="upload-limit-label">OpenAPI specification</span>
+            <span className="upload-limit-value">Up to 5 MB</span>
+            <span className="upload-limit-hint">JSON or YAML</span>
           </div>
-          <div className="p-2.5 rounded bg-slate-950/60 border border-slate-800">
-            <span className="text-slate-500 block text-[10px] uppercase">Source Code Archive</span>
-            <span className="text-teal-400 font-semibold">Max 25 MB</span>
-            <span className="text-slate-500 block text-[10px]">.zip archive</span>
+          <div className="upload-limit">
+            <span className="upload-limit-label">Source code archive</span>
+            <span className="upload-limit-value">Up to 25 MB</span>
+            <span className="upload-limit-hint">ZIP archive</span>
           </div>
-          <div className="p-2.5 rounded bg-slate-950/60 border border-slate-800">
-            <span className="text-slate-500 block text-[10px] uppercase">Total Payload Ceiling</span>
-            <span className="text-teal-400 font-semibold">Max 50 MB</span>
-            <span className="text-slate-500 block text-[10px]">Enforced by gateway</span>
+          <div className="upload-limit">
+            <span className="upload-limit-label">Request size ceiling</span>
+            <span className="upload-limit-value">Up to 50 MB</span>
+            <span className="upload-limit-hint">Enforced by the API</span>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Form Card */}
-      <form onSubmit={handleSubmit} className="bg-slate-900 border border-slate-800 p-6 rounded-lg space-y-6">
-        {/* Project Name Field */}
+      <form onSubmit={handleSubmit} className="surface-card upload-form">
         <div>
-          <label className="block text-xs font-mono uppercase text-slate-300 mb-1.5">
-            Project / Application Name (Optional)
+          <label htmlFor="project-name" className="form-label">
+            Project name <span className="font-normal text-slate-500">· optional</span>
           </label>
           <input
+            id="project-name"
             type="text"
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
-            placeholder="e.g. Payments Service v2, VAmPI Target"
-            className="w-full bg-slate-950 border border-slate-800 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 rounded-md px-3.5 py-2.5 text-xs text-slate-200 placeholder:text-slate-600 transition-colors"
+            maxLength={120}
+            placeholder="For example, Payments API"
           />
         </div>
 
-        {/* Upload Targets Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Spec File Selector */}
+        <div className="upload-target-grid">
           <div>
-            <label className="block text-xs font-mono uppercase text-slate-300 mb-1.5">
-              1. OpenAPI Specification <span className="text-rose-400">*</span>
+            <label htmlFor="openapi-upload" className="upload-target-label">
+              <span className="upload-step">01</span> OpenAPI specification <span className="text-rose-400">*</span>
             </label>
             <input
+              id="openapi-upload"
               type="file"
               ref={specInputRef}
               accept=".json,.yaml,.yml"
@@ -191,55 +191,44 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
             />
             <div
               onClick={() => specInputRef.current?.click()}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  specInputRef.current?.click();
+                }
+              }}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
                 if (e.dataTransfer.files?.[0]) handleSpecSelect(e.dataTransfer.files[0]);
               }}
-              className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-colors ${
-                specFile
-                  ? 'border-teal-500/50 bg-teal-500/5'
-                  : 'border-slate-800 hover:border-slate-700 bg-slate-950/40'
-              }`}
+              role="button"
+              tabIndex={0}
+              aria-label="Choose or drop an OpenAPI specification"
+              className={`upload-dropzone${specFile ? ' has-file' : ''}`}
             >
               {specFile ? (
-                <div className="space-y-2">
-                  <div className="h-10 w-10 mx-auto rounded-full bg-teal-500/10 text-teal-400 flex items-center justify-center">
-                    <CheckCircle2 className="h-5 w-5" />
-                  </div>
-                  <div className="text-xs font-medium text-slate-200 truncate">{specFile.name}</div>
-                  <div className="text-[11px] font-mono text-slate-400">
-                    {(specFile.size / 1024).toFixed(1)} KB
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSpecFile(null);
-                    }}
-                    className="text-[11px] text-slate-500 hover:text-rose-400 underline"
-                  >
-                    Change file
-                  </button>
-                </div>
+                <>
+                  <span className="dropzone-icon"><CheckCircle2 size={19} /></span>
+                  <span className="dropzone-title">{specFile.name}</span>
+                  <span className="dropzone-hint">{(specFile.size / 1024).toFixed(1)} KB · click to replace</span>
+                </>
               ) : (
-                <div className="space-y-2">
-                  <FileCode className="h-8 w-8 mx-auto text-slate-500" />
-                  <div className="text-xs font-medium text-slate-300">
-                    Click to browse or drop OpenAPI file
-                  </div>
-                  <div className="text-[11px] text-slate-500">Supports JSON, YAML, or YML (up to 5MB)</div>
-                </div>
+                <>
+                  <span className="dropzone-icon"><FileCode size={20} /></span>
+                  <span className="dropzone-title">Drop your API contract here</span>
+                  <span className="dropzone-hint"><span className="dropzone-browse">Browse files</span> · JSON or YAML · up to 5 MB</span>
+                </>
               )}
             </div>
           </div>
 
-          {/* Source Archive Selector */}
           <div>
-            <label className="block text-xs font-mono uppercase text-slate-300 mb-1.5">
-              2. Source Code Archive <span className="text-rose-400">*</span>
+            <label htmlFor="source-archive-upload" className="upload-target-label">
+              <span className="upload-step">02</span> Source code archive <span className="font-normal text-slate-500">· optional</span>
             </label>
             <input
+              id="source-archive-upload"
               type="file"
               ref={archiveInputRef}
               accept=".zip"
@@ -250,48 +239,50 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
             />
             <div
               onClick={() => archiveInputRef.current?.click()}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  archiveInputRef.current?.click();
+                }
+              }}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
                 if (e.dataTransfer.files?.[0]) handleArchiveSelect(e.dataTransfer.files[0]);
               }}
-              className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-colors ${
-                archiveFile
-                  ? 'border-teal-500/50 bg-teal-500/5'
-                  : 'border-slate-800 hover:border-slate-700 bg-slate-950/40'
-              }`}
+              role="button"
+              tabIndex={0}
+              aria-label="Choose or drop a source code ZIP archive"
+              className={`upload-dropzone${archiveFile ? ' has-file' : ''}`}
             >
               {archiveFile ? (
-                <div className="space-y-2">
-                  <div className="h-10 w-10 mx-auto rounded-full bg-teal-500/10 text-teal-400 flex items-center justify-center">
-                    <CheckCircle2 className="h-5 w-5" />
-                  </div>
-                  <div className="text-xs font-medium text-slate-200 truncate">{archiveFile.name}</div>
-                  <div className="text-[11px] font-mono text-slate-400">
-                    {(archiveFile.size / (1024 * 1024)).toFixed(2)} MB
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setArchiveFile(null);
-                    }}
-                    className="text-[11px] text-slate-500 hover:text-rose-400 underline"
-                  >
-                    Change archive
-                  </button>
-                </div>
+                <>
+                  <span className="dropzone-icon"><CheckCircle2 size={19} /></span>
+                  <span className="dropzone-title">{archiveFile.name}</span>
+                  <span className="dropzone-hint">{(archiveFile.size / (1024 * 1024)).toFixed(2)} MB · click to replace</span>
+                </>
               ) : (
-                <div className="space-y-2">
-                  <FileArchive className="h-8 w-8 mx-auto text-slate-500" />
-                  <div className="text-xs font-medium text-slate-300">
-                    Click to browse or drop ZIP archive
-                  </div>
-                  <div className="text-[11px] text-slate-500">FastAPI, Flask, or Express source (up to 25MB)</div>
-                </div>
+                <>
+                  <span className="dropzone-icon"><FileArchive size={20} /></span>
+                  <span className="dropzone-title">Drop your source archive here</span>
+                  <span className="dropzone-hint"><span className="dropzone-browse">Browse files</span> · ZIP · up to 25 MB</span>
+                </>
               )}
             </div>
           </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-xs">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-medium text-slate-200">Local AI explanations</span>
+            <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${visibleLocalAIStatus?.status === 'Available' ? 'bg-emerald-950 text-emerald-300' : 'bg-slate-800 text-slate-400'}`}>
+              {visibleLocalAIStatus?.status ?? (isAuthenticated ? 'Checking' : 'Configure access to check')}
+            </span>
+          </div>
+          <p className="mt-1 text-slate-400">
+            {visibleLocalAIStatus?.message ?? 'Scans use deterministic analysis without a hosted AI key. Ollama is optional.'}
+            {visibleLocalAIStatus?.model_name ? ` Model: ${visibleLocalAIStatus.model_name}.` : ''}
+          </p>
         </div>
 
         {/* Validation or API Errors */}
@@ -330,24 +321,22 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
         )}
 
         {/* Submit Button */}
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <div className="upload-submit-row">
+          <p className="upload-helper"><ShieldAlert size={15} /> Source files are inspected statically and are never executed. All scans include every applicable analysis layer.</p>
           <button
             type="submit"
-            disabled={isSubmitting || !specFile || !archiveFile}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-md text-xs font-semibold transition-colors shadow-xs ${
-              isSubmitting || !specFile || !archiveFile
-                ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                : 'bg-teal-500 hover:bg-teal-400 text-slate-950 cursor-pointer'
-            }`}
+            disabled={isSubmitting || !specFile}
+            className="button button-primary"
+            aria-live="polite"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Uploading & Starting Scan...</span>
+                <span>Uploading and analyzing…</span>
               </>
             ) : (
               <>
-                <span>Launch Security Analysis</span>
+                <span>Start assessment</span>
                 <ArrowRight className="h-4 w-4" />
               </>
             )}

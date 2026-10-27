@@ -18,6 +18,8 @@ services:
 
   api:
     build: .
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
@@ -25,12 +27,19 @@ services:
       ENVIRONMENT: development
       DATABASE_URL: postgresql+psycopg://analyzer:analyzer@postgres:5432/api_security
       SESSION_SECRET: development-only-replace-me
-      API_ACCESS_TOKEN: dev-insecure-api-access-token-do-not-use-in-production
+      API_ACCESS_TOKEN: ${API_ACCESS_TOKEN:-}
+      LOCAL_DEV_AUTH_BYPASS: ${LOCAL_DEV_AUTH_BYPASS:-true}
+      LOCAL_AI_ENABLED: ${LOCAL_AI_ENABLED:-true}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-}
+      LOCAL_AI_TIMEOUT_SECONDS: ${LOCAL_AI_TIMEOUT_SECONDS:-20}
+      LOCAL_AI_MAX_CONTEXT_CHARS: ${LOCAL_AI_MAX_CONTEXT_CHARS:-6000}
     command:
       [
         "sh",
         "-c",
-        "uv run alembic upgrade head && exec uv run uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port 8000",
+        "uv run --no-sync alembic upgrade head && exec uv run --no-sync uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port 8000",
       ]
     ports:
       - "127.0.0.1:8000:8000"
@@ -40,7 +49,7 @@ services:
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')",
         ]
       interval: 15s
       timeout: 5s

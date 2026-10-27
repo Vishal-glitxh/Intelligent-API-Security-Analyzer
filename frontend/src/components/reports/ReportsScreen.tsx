@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   FileText, 
   Download, 
@@ -12,12 +12,9 @@ import { redactSecrets } from '../../utils/redact';
 
 interface ReportsScreenProps {
   scanId: string;
-  onNavigate?: (screen: any, scanId?: string) => void;
 }
 
-export const ReportsScreen: React.FC<ReportsScreenProps> = ({
-  scanId
-}) => {
+export const ReportsScreen: React.FC<ReportsScreenProps> = ({ scanId }) => {
   const [activeFormat, setActiveFormat] = useState<'html' | 'json'>('html');
   const [htmlContent, setHtmlContent] = useState<string | null>(null);
   const [jsonContent, setJsonContent] = useState<unknown | null>(null);
@@ -25,9 +22,7 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<'html' | 'json' | null>(null);
 
-  const fetchReports = async () => {
-    setLoading(true);
-    setError(null);
+  const fetchReports = useCallback(async () => {
     try {
       if (activeFormat === 'html') {
         const html = await api.getScanReportHtml(scanId);
@@ -41,11 +36,18 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeFormat, scanId]);
 
   useEffect(() => {
-    fetchReports();
-  }, [scanId, activeFormat]);
+    // eslint-disable-next-line react/set-state-in-effect -- This starts an API request; its state updates run after the request settles.
+    void fetchReports();
+  }, [fetchReports]);
+
+  const refreshReports = () => {
+    setLoading(true);
+    setError(null);
+    void fetchReports();
+  };
 
   const handleDownload = async (format: 'html' | 'json') => {
     setDownloading(format);
@@ -120,7 +122,11 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = ({
       <div className="flex items-center justify-between bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-lg text-xs font-mono">
         <div className="flex items-center gap-1 bg-slate-950 p-1 rounded border border-slate-800">
           <button
-            onClick={() => setActiveFormat('html')}
+            onClick={() => {
+              setLoading(true);
+              setError(null);
+              setActiveFormat('html');
+            }}
             className={`flex items-center gap-1.5 px-3 py-1 rounded transition-colors ${
               activeFormat === 'html'
                 ? 'bg-teal-500/20 text-teal-300 font-semibold'
@@ -131,7 +137,11 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = ({
             <span>Executive HTML Report</span>
           </button>
           <button
-            onClick={() => setActiveFormat('json')}
+            onClick={() => {
+              setLoading(true);
+              setError(null);
+              setActiveFormat('json');
+            }}
             className={`flex items-center gap-1.5 px-3 py-1 rounded transition-colors ${
               activeFormat === 'json'
                 ? 'bg-teal-500/20 text-teal-300 font-semibold'
@@ -144,7 +154,7 @@ export const ReportsScreen: React.FC<ReportsScreenProps> = ({
         </div>
 
         <button
-          onClick={fetchReports}
+          onClick={refreshReports}
           className="p-1.5 text-slate-400 hover:text-slate-200 rounded"
           title="Refresh report content"
         >

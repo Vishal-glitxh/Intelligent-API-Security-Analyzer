@@ -1,32 +1,26 @@
-# React + TypeScript + Vite
+# Intelligent API Security Analyzer — Analyst Workspace
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The frontend is a React and TypeScript analyst workspace for reviewing API security scans, findings, endpoint correlations, benchmark research, and exports. It talks to the FastAPI service through the Vite `/api` and `/health` development proxies.
 
-Currently, two official plugins are available:
+## Run locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Prerequisites: Node.js 20 or newer and a running backend at `http://localhost:8000`.
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Open `http://localhost:5173`. Configure the API key from the header when the service requires authentication. The key is held in session storage for the active browser session.
+
+## Verify changes
+
+```bash
+npm test
+npm run lint
+npm run build
+```
+
+`npm test` runs the frontend unit and integration tests, `npm run lint` checks the React and TypeScript source, and `npm run build` performs the production TypeScript and Vite build.
+
+The production build is written to `dist/`. Configure the deployed frontend host to route `/api` and `/health` to the backend service; the Vite proxy only applies during local development.

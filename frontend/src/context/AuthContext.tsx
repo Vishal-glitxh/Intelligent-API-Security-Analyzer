@@ -1,16 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-
-interface AuthContextType {
-  apiKey: string;
-  setApiKey: (key: string) => void;
-  isAuthenticated: boolean;
-  isConfigModalOpen: boolean;
-  setIsConfigModalOpen: (open: boolean) => void;
-  getAuthHeaders: () => Record<string, string>;
-  clearAuth: () => void;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import React, { useState, useEffect } from 'react';
+import { api } from '../services/api';
+import { AuthContext } from './auth-context';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // We keep in-memory credential state as required by security guidelines
@@ -19,10 +9,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return sessionStorage.getItem('analyzer_session_api_key') || '';
   });
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [localDevelopmentAccess, setLocalDevelopmentAccess] = useState(false);
+
+  useEffect(() => {
+    if (apiKey) return;
+    let active = true;
+    void api.getAuthSession().then((session) => {
+      if (active) setLocalDevelopmentAccess(session.auth_mode === 'local-development');
+    }).catch(() => {
+      if (active) setLocalDevelopmentAccess(false);
+    });
+    return () => { active = false; };
+  }, [apiKey]);
 
   const setApiKey = (key: string) => {
     const trimmed = key.trim();
     setApiKeyState(trimmed);
+    setLocalDevelopmentAccess(false);
     if (trimmed) {
       sessionStorage.setItem('analyzer_session_api_key', trimmed);
     } else {
@@ -32,6 +35,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearAuth = () => {
     setApiKeyState('');
+    setLocalDevelopmentAccess(false);
     sessionStorage.removeItem('analyzer_session_api_key');
   };
 
@@ -55,7 +59,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         apiKey,
         setApiKey,
-        isAuthenticated: Boolean(apiKey),
+        isAuthenticated: Boolean(apiKey) || localDevelopmentAccess,
+        localDevelopmentAccess,
         isConfigModalOpen,
         setIsConfigModalOpen,
         getAuthHeaders,
@@ -65,12 +70,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 };

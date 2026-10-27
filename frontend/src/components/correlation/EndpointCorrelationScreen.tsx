@@ -1,16 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   GitCompare, 
   Search, 
-  Filter, 
-  CheckCircle2, 
   AlertCircle, 
   RefreshCw, 
-  ArrowRight, 
   FileCode, 
   Layers, 
   Info,
-  ExternalLink,
   Code2
 } from 'lucide-react';
 import { api } from '../../services/api';
@@ -19,13 +15,9 @@ import { TierBadge } from '../common/Badge';
 
 interface EndpointCorrelationScreenProps {
   scanId: string;
-  onNavigate: (screen: any, scanId?: string) => void;
 }
 
-export const EndpointCorrelationScreen: React.FC<EndpointCorrelationScreenProps> = ({
-  scanId,
-  onNavigate
-}) => {
+export const EndpointCorrelationScreen: React.FC<EndpointCorrelationScreenProps> = ({ scanId }) => {
   const [results, setResults] = useState<ScanResultsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,9 +29,7 @@ export const EndpointCorrelationScreen: React.FC<EndpointCorrelationScreenProps>
   // Selected detail
   const [selectedEndpoint, setSelectedEndpoint] = useState<MatchedEndpoint | null>(null);
 
-  const fetchResults = async () => {
-    setLoading(true);
-    setError(null);
+  const fetchResults = useCallback(async () => {
     try {
       const data = await api.getScanResults(scanId);
       setResults(data);
@@ -51,13 +41,14 @@ export const EndpointCorrelationScreen: React.FC<EndpointCorrelationScreenProps>
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchResults();
   }, [scanId]);
 
-  const endpoints = results?.matched_endpoints || [];
+  useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect -- This starts an API request; its state updates run after the request settles.
+    void fetchResults();
+  }, [fetchResults]);
+
+  const endpoints = useMemo(() => results?.matched_endpoints || [], [results]);
 
   const filteredEndpoints = useMemo(() => {
     return endpoints.filter((ep) => {

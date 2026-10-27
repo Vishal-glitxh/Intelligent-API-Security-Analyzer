@@ -33,8 +33,8 @@ def get_benchmarks(
     external_metrics = _read_json_if_exists(REPORTS_DIR / "external" / "metrics.json")
     combined_metrics = _read_json_if_exists(REPORTS_DIR / "combined" / "metrics.json")
     ci_data = _read_json_if_exists(REPORTS_DIR / "phase7" / "confidence_intervals.json")
-    mode_comp = _read_json_if_exists(REPORTS_DIR / "phase7" / "mode_comparisons.json")
-    taxonomy = _read_json_if_exists(REPORTS_DIR / "phase7" / "error_taxonomy.json")
+    mode_comp = _read_json_if_exists(REPORTS_DIR / "phase7" / "mode_comparison.json")
+    error_analysis = _read_json_if_exists(REPORTS_DIR / "phase7" / "error_analysis.json")
 
     return {
         "baseline": baseline_metrics,
@@ -43,6 +43,6 @@ def get_benchmarks(
         "phase7": {
             "confidence_intervals": ci_data,
             "mode_comparisons": mode_comp,
-            "error_taxonomy": taxonomy,
+            "error_analysis": error_analysis,
         },
     }

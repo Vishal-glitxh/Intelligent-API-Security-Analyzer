@@ -1,23 +1,22 @@
 import React from 'react';
-import { 
-  LayoutDashboard, 
-  PlusCircle, 
-  FileSearch, 
-  ShieldAlert, 
-  GitCompare, 
-  FlaskConical, 
+import {
+  Activity,
+  BarChart3,
+  FileSearch,
   FileText,
+  GitCompare,
+  LayoutDashboard,
+  Plus,
   ShieldCheck,
-  ChevronRight
 } from 'lucide-react';
 
-export type ScreenId = 
-  | 'dashboard' 
-  | 'new-scan' 
-  | 'scan-details' 
-  | 'findings' 
-  | 'correlation' 
-  | 'research' 
+export type ScreenId =
+  | 'dashboard'
+  | 'new-scan'
+  | 'scan-details'
+  | 'findings'
+  | 'correlation'
+  | 'research'
   | 'reports';
 
 interface SidebarProps {
@@ -33,179 +32,80 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNavigate,
   selectedScanId,
   isOpen,
-  onClose
+  onClose,
 }) => {
-  const mainNavItems = [
-    {
-      id: 'dashboard' as ScreenId,
-      label: 'Dashboard',
-      icon: LayoutDashboard,
-      badge: null
-    },
-    {
-      id: 'new-scan' as ScreenId,
-      label: 'New Scan',
-      icon: PlusCircle,
-      badge: null
-    },
-    {
-      id: 'research' as ScreenId,
-      label: 'Research Benchmark',
-      icon: FlaskConical,
-      badge: 'Phase 7.3'
-    }
+  const workspaceItems = [
+    { id: 'dashboard' as const, label: 'Overview', icon: LayoutDashboard },
+    { id: 'new-scan' as const, label: 'New assessment', icon: Plus },
+    { id: 'research' as const, label: 'Research benchmarks', icon: BarChart3 },
+  ];
+  const analysisItems = [
+    { id: 'scan-details' as const, label: 'Scan summary', icon: FileSearch },
+    { id: 'findings' as const, label: 'Findings explorer', icon: Activity },
+    { id: 'correlation' as const, label: 'Endpoint correlation', icon: GitCompare },
+    { id: 'reports' as const, label: 'Reports & exports', icon: FileText },
   ];
 
-  const scanScopedItems = [
-    {
-      id: 'scan-details' as ScreenId,
-      label: 'Scan Overview',
-      icon: FileSearch
-    },
-    {
-      id: 'findings' as ScreenId,
-      label: 'Findings Explorer',
-      icon: ShieldAlert
-    },
-    {
-      id: 'correlation' as ScreenId,
-      label: 'Endpoint Correlation',
-      icon: GitCompare
-    },
-    {
-      id: 'reports' as ScreenId,
-      label: 'Reports & Export',
-      icon: FileText
-    }
-  ];
+  const renderItem = (item: (typeof workspaceItems)[number] | (typeof analysisItems)[number], scoped = false) => {
+    const Icon = item.icon;
+    const disabled = scoped && !selectedScanId;
+    const active = currentScreen === item.id;
+    return (
+      <button
+        key={item.id}
+        type="button"
+        className={`nav-item${active ? ' is-active' : ''}`}
+        disabled={disabled}
+        aria-current={active ? 'page' : undefined}
+        onClick={() => {
+          if (disabled) return;
+          onNavigate(item.id, scoped ? selectedScanId ?? undefined : undefined);
+          onClose();
+        }}
+        title={disabled ? 'Select a scan to open this view' : item.label}
+      >
+        <Icon aria-hidden="true" />
+        <span className="nav-item-label">{item.label}</span>
+      </button>
+    );
+  };
 
   return (
     <>
-      {/* Mobile Backdrop */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 bg-slate-950/80 z-40 lg:hidden backdrop-blur-xs"
-          onClick={onClose}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Persistent Sidebar */}
-      <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 w-64 bg-slate-900 border-r border-slate-800 flex flex-col transition-transform duration-200 ease-in-out lg:translate-x-0 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        {/* Brand / Header */}
-        <div className="h-16 flex items-center px-5 border-b border-slate-800 gap-3">
-          <div className="h-9 w-9 rounded-lg bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400">
-            <ShieldCheck className="h-5 w-5" />
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-sm font-semibold text-slate-100 tracking-tight truncate">
-              API Security Analyzer
-            </span>
-            <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400">
-              Analyst Workstation
-            </span>
-          </div>
+      {isOpen && <button className="app-backdrop" onClick={onClose} aria-label="Close navigation" />}
+      <aside className={`app-sidebar${isOpen ? ' is-open' : ''}`} aria-label="Main navigation">
+        <div className="brand-lockup">
+          <span className="brand-symbol"><ShieldCheck size={22} strokeWidth={2.2} /></span>
+          <span>
+            <span className="brand-title block">API Security Analyzer</span>
+            <span className="brand-caption block">Research workspace</span>
+          </span>
         </div>
+        <div className="sidebar-rule" />
 
-        {/* Navigation list */}
-        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
-          {/* Main workspace navigation */}
-          <div>
-            <div className="px-3 mb-2 text-[10px] font-mono uppercase tracking-wider text-slate-500">
-              Workspace
-            </div>
-            <nav className="space-y-1">
-              {mainNavItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = currentScreen === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      onNavigate(item.id);
-                      onClose();
-                    }}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium transition-colors ${
-                      isActive
-                        ? 'bg-teal-500/10 text-teal-300 border border-teal-500/30'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                    }`}
-                  >
-                    <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-teal-400' : 'text-slate-400'}`} />
-                    <span className="flex-1 text-left">{item.label}</span>
-                    {item.badge && (
-                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-teal-400">
-                        {item.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
+        <nav className="flex-1 overflow-y-auto" aria-label="Workspace sections">
+          <section className="nav-group">
+            <h2 className="nav-label">Workspace</h2>
+            <div className="nav-list">{workspaceItems.map((item) => renderItem(item))}</div>
+          </section>
 
-          {/* Active Scan Context Navigation */}
-          <div>
-            <div className="px-3 mb-2 flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-slate-500">
-              <span>Active Scan Analysis</span>
-              {selectedScanId ? (
-                <span className="text-slate-400 font-mono text-[9px] truncate max-w-[80px]" title={selectedScanId}>
-                  #{selectedScanId.slice(0, 6)}
-                </span>
-              ) : (
-                <span className="text-slate-600 text-[9px]">(None)</span>
-              )}
-            </div>
-            <nav className="space-y-1">
-              {scanScopedItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = currentScreen === item.id;
-                const isDisabled = !selectedScanId;
+          <section className="nav-group">
+            <h2 className="nav-label flex items-center justify-between">
+              <span>Selected scan</span>
+              <span className="sidebar-context" title={selectedScanId ?? undefined}>
+                {selectedScanId ? `#${selectedScanId.slice(0, 8)}` : 'None'}
+              </span>
+            </h2>
+            <div className="nav-list">{analysisItems.map((item) => renderItem(item, true))}</div>
+          </section>
+        </nav>
 
-                return (
-                  <button
-                    key={item.id}
-                    disabled={isDisabled}
-                    onClick={() => {
-                      if (selectedScanId) {
-                        onNavigate(item.id, selectedScanId);
-                        onClose();
-                      }
-                    }}
-                    title={isDisabled ? 'Select or create a scan first' : item.label}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium transition-colors ${
-                      isActive
-                        ? 'bg-teal-500/10 text-teal-300 border border-teal-500/30'
-                        : isDisabled
-                        ? 'text-slate-600 cursor-not-allowed opacity-60'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                    }`}
-                  >
-                    <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-teal-400' : 'text-slate-500'}`} />
-                    <span className="flex-1 text-left">{item.label}</span>
-                    {selectedScanId && isActive && (
-                      <ChevronRight className="h-3 w-3 text-teal-400 shrink-0" />
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
+        <div className="sidebar-bottom">
+          <div className="corpus-card">
+            <div className="corpus-topline"><span>Evidence-led analysis</span><span className="corpus-dot" /></div>
+            <p>OpenAPI rules, static source analysis, and deterministic endpoint correlation.</p>
           </div>
-        </div>
-
-        {/* Footer Info */}
-        <div className="p-4 border-t border-slate-800 text-[11px] text-slate-500 flex flex-col gap-1 font-mono">
-          <div className="flex justify-between items-center text-slate-400">
-            <span>Analyzer Core</span>
-            <span className="text-teal-400 font-semibold">Phase 8</span>
-          </div>
-          <div className="text-[10px] text-slate-500 truncate">
-            Ground Truth: Frozen 24 + 12
-          </div>
+          <div className="sidebar-footnote"><span>Analyzer workspace</span><span>v1.0</span></div>
         </div>
       </aside>
     </>

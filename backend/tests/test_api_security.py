@@ -1,22 +1,30 @@
+import asyncio
 import io
 import uuid
 import zipfile
 from collections.abc import Generator
 from pathlib import Path
+from types import SimpleNamespace
+from typing import cast
 from unittest.mock import patch
 
 import pytest
 import yaml
 from app.core.config import settings
 from app.core.security import (
+    ClientIdentity,
+    ScanRateLimiter,
+    _parse_client_tokens_setting,
     clear_test_client_tokens,
     register_test_client_token,
+    verify_scan_access,
 )
 from app.db.session import get_db
 from app.main import app
 from app.repositories.scan import ScanRepository
 from app.services.archive import extract_source_archive, validate_spec_upload
 from fastapi.testclient import TestClient
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 SAMPLE_SPEC_YAML = """openapi: 3.0.3
 info:
@@ -51,6 +59,22 @@ def cleanup_tokens() -> Generator[None]:
     clear_test_client_tokens()
     yield
     clear_test_client_tokens()
+
+
+def _clear_application_rate_limit_buckets() -> None:
+    middleware = app.middleware_stack
+    while middleware is not None:
+        if isinstance(middleware, ScanRateLimiter):
+            middleware._requests.clear()
+            return
+        middleware = getattr(middleware, "app", None)
+
+
+@pytest.fixture(autouse=True)
+def isolate_application_rate_limit_buckets() -> Generator[None]:
+    _clear_application_rate_limit_buckets()
+    yield
+    _clear_application_rate_limit_buckets()
 
 
 # ==============================================================================
@@ -116,6 +140,178 @@ def test_authorized_owner_access_and_unauthorized_tenant_isolation() -> None:
 
     res_beta_findings = client_beta.get(f"/api/v1/scans/{scan_id}/findings")
     assert res_beta_findings.status_code == 403
+
+
+def test_legacy_unowned_scan_is_not_exposed_to_non_admin_clients() -> None:
+    scan = SimpleNamespace(client_id=None)
+    with pytest.raises(Exception) as error:
+        verify_scan_access(scan, ClientIdentity(client_id="tenant-alpha"))
+    assert getattr(error.value, "status_code", None) == 403
+    verify_scan_access(scan, ClientIdentity(client_id="admin", is_admin=True))
+
+
+def test_malformed_client_token_json_is_ignored_with_sanitized_warning(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    sensitive_marker = "do-not-log-this-token-value"
+    monkeypatch.setattr(settings, "api_client_tokens", f'{{"tenant":"{sensitive_marker}"')
+
+    assert _parse_client_tokens_setting() == {}
+    assert "JSONDecodeError" in caplog.text
+    assert "malformed API_CLIENT_TOKENS JSON configuration" in caplog.text
+    assert sensitive_marker not in caplog.text
+
+
+def test_rate_limit_identity_is_shared_between_api_key_and_bearer_headers() -> None:
+    register_test_client_token("same-token", "same-client")
+
+    async def passthrough(scope: Scope, receive: Receive, send: Send) -> None:
+        return None
+
+    limiter = ScanRateLimiter(cast(ASGIApp, passthrough))
+
+    async def invoke(header: tuple[bytes, bytes]) -> None:
+        async def receive() -> Message:
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        async def send(message: Message) -> None:
+            return None
+
+        await limiter(
+            cast(
+                Scope,
+                {
+                    "type": "http",
+                    "method": "POST",
+                    "path": "/api/v1/scans",
+                    "headers": [header],
+                    "client": ("127.0.0.1", 1234),
+                },
+            ),
+            receive,
+            send,
+        )
+
+    asyncio.run(invoke((b"x-api-key", b"same-token")))
+    asyncio.run(invoke((b"authorization", b"Bearer same-token")))
+    assert list(limiter._requests) == ["client:same-client"]
+    assert len(limiter._requests["client:same-client"]) == 2
+
+
+def _invoke_rate_limiter(
+    limiter: ScanRateLimiter,
+    header: tuple[bytes, bytes],
+    *,
+    client_host: str = "127.0.0.1",
+) -> tuple[int, bool]:
+    passed_downstream = False
+
+    async def receive() -> Message:
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message: Message) -> None:
+        return None
+
+    async def downstream(scope: Scope, body_receive: Receive, body_send: Send) -> None:
+        nonlocal passed_downstream
+        passed_downstream = True
+        await body_send({"type": "http.response.start", "status": 202, "headers": []})
+        await body_send({"type": "http.response.body", "body": b""})
+
+    limiter.app = cast(ASGIApp, downstream)
+    status_codes: list[int] = []
+
+    async def recording_send(message: Message) -> None:
+        if message["type"] == "http.response.start":
+            status_codes.append(int(message["status"]))
+
+    asyncio.run(
+        limiter(
+            cast(
+                Scope,
+                {
+                    "type": "http",
+                    "method": "POST",
+                    "path": "/api/v1/scans",
+                    "headers": [header],
+                    "client": (client_host, 1234),
+                },
+            ),
+            receive,
+            recording_send,
+        )
+    )
+    return status_codes[0], passed_downstream
+
+
+def test_rate_limiter_cleans_expired_buckets_with_controlled_clock(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    now = [100.0]
+    monkeypatch.setattr("app.core.security.time.monotonic", lambda: now[0])
+    monkeypatch.setattr(settings, "scan_rate_limit_requests", 1)
+    monkeypatch.setattr(settings, "scan_rate_limit_window_seconds", 10)
+    for token, client_id in (("first-token", "first"), ("second-token", "second")):
+        register_test_client_token(token, client_id)
+
+    limiter = ScanRateLimiter(cast(ASGIApp, lambda scope, receive, send: None))
+    assert _invoke_rate_limiter(limiter, (b"x-api-key", b"first-token"))[0] == 202
+    assert _invoke_rate_limiter(limiter, (b"x-api-key", b"second-token"))[0] == 202
+    assert len(limiter._requests) == 2
+
+    now[0] = 110.0
+    assert _invoke_rate_limiter(limiter, (b"x-api-key", b"first-token"))[0] == 202
+    assert len(limiter._requests) == 1
+    assert len(next(iter(limiter._requests.values()))) == 1
+
+
+def test_unique_invalid_tokens_and_peer_addresses_share_bounded_bucket_without_blocking_clients(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "scan_rate_limit_requests", 2)
+    monkeypatch.setattr(settings, "scan_rate_limit_window_seconds", 60)
+    limiter = ScanRateLimiter(cast(ASGIApp, lambda scope, receive, send: None))
+    for index in range(2):
+        assert _invoke_rate_limiter(
+            limiter,
+            (b"x-api-key", f"invalid-{index}".encode()),
+            client_host=f"203.0.113.{index + 1}",
+        ) == (202, True)
+    assert _invoke_rate_limiter(
+        limiter, (b"x-api-key", b"invalid-third"), client_host="203.0.113.3"
+    ) == (429, False)
+    assert list(limiter._requests) == ["unauthenticated"]
+    assert len(limiter._requests["unauthenticated"]) == 2
+
+    register_test_client_token("legitimate-token", "legitimate-client")
+    assert _invoke_rate_limiter(limiter, (b"x-api-key", b"legitimate-token")) == (202, True)
+    assert set(limiter._requests) == {"unauthenticated", "client:legitimate-client"}
+
+
+def test_non_ascii_invalid_credentials_are_throttled_without_comparison_errors() -> None:
+    limiter = ScanRateLimiter(cast(ASGIApp, lambda scope, receive, send: None))
+    assert _invoke_rate_limiter(limiter, (b"x-api-key", b"\xff")) == (202, True)
+    assert list(limiter._requests) == ["unauthenticated"]
+
+
+def test_rate_limiter_expires_all_identity_buckets_before_admitting_new_window(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    now = [200.0]
+    monkeypatch.setattr("app.core.security.time.monotonic", lambda: now[0])
+    monkeypatch.setattr(settings, "scan_rate_limit_requests", 1)
+    monkeypatch.setattr(settings, "scan_rate_limit_window_seconds", 10)
+    register_test_client_token("first-token", "first-client")
+    register_test_client_token("second-token", "second-client")
+    limiter = ScanRateLimiter(cast(ASGIApp, lambda scope, receive, send: None))
+
+    assert _invoke_rate_limiter(limiter, (b"x-api-key", b"first-token")) == (202, True)
+    assert _invoke_rate_limiter(limiter, (b"x-api-key", b"second-token")) == (202, True)
+    now[0] = 210.0
+
+    assert _invoke_rate_limiter(limiter, (b"x-api-key", b"first-token")) == (202, True)
+    assert set(limiter._requests) == {"client:first-client"}
+    assert _invoke_rate_limiter(limiter, (b"x-api-key", b"first-token")) == (429, False)
 
 
 # ==============================================================================
@@ -253,8 +449,8 @@ def test_scan_startup_recovery_cleans_interrupted_scans() -> None:
         )
         repo.update_status(scan.id, "RUNNING")
 
-        recovered_count = repo.recover_interrupted_scans()
-        assert recovered_count >= 1
+        recovered_ids = repo.recover_interrupted_scans()
+        assert scan.id in recovered_ids
 
         recovered_scan = repo.get_scan(scan.id)
         assert recovered_scan is not None
