@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { Finding } from '../../types/findings';
+import { mapCorrelatedFinding } from '../../utils/findings';
 import { SeverityBadge, CategoryBadge, LayerBadge } from '../common/Badge';
 import { redactSecrets } from '../../utils/redact';
 import { ScanAssistantResponse } from '../../types/findings';
@@ -19,6 +20,88 @@ import { ScanAssistantResponse } from '../../types/findings';
 interface FindingsExplorerScreenProps {
   scanId: string;
 }
+
+export const FindingHeader: React.FC<{ finding: Finding }> = ({ finding }) => (
+  <div className="space-y-3">
+    <div className="flex items-center justify-between gap-2 flex-wrap">
+      <div className="flex items-center gap-2">
+        <SeverityBadge severity={finding.severity} />
+        <LayerBadge layer={finding.layer} />
+        {finding.category && <CategoryBadge category={finding.category} />}
+      </div>
+      <span className="text-xs font-mono text-slate-500">ID: {finding.id}</span>
+    </div>
+
+    <h3 className="text-base font-semibold text-slate-100">{finding.title}</h3>
+
+    <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-slate-400 pt-1">
+      <div>
+        Rule: <span className="text-teal-400">{finding.rule_id}</span>
+      </div>
+      {finding.cwe_id && (
+        <div>
+          CWE: <span className="text-slate-300">{finding.cwe_id}</span>
+        </div>
+      )}
+      {finding.confidence !== undefined && finding.confidence !== null && (
+        <div>
+          Confidence: <span className="text-slate-300">{finding.confidence}</span>
+        </div>
+      )}
+    </div>
+  </div>
+);
+
+export const FindingDescription: React.FC<{ finding: Finding }> = ({ finding }) => {
+  const description = finding.description?.trim() || finding.rationale?.trim();
+
+  return (
+    <div>
+      <h4 className="text-xs font-mono uppercase text-slate-400 mb-1.5 flex items-center gap-1.5">
+        <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />
+        <span>Vulnerability Description</span>
+      </h4>
+      <p className="text-xs text-slate-300 leading-relaxed bg-slate-950/40 p-3 rounded border border-slate-800/80">
+        {description || 'No description available.'}
+      </p>
+    </div>
+  );
+};
+
+export const FindingEvidenceAndRemediation: React.FC<{ finding: Finding }> = ({ finding }) => (
+  <>
+    {finding.evidence && (
+      <div>
+        <h4 className="text-xs font-mono uppercase text-slate-400 mb-1.5 flex items-center gap-1.5">
+          <Code2 className="h-3.5 w-3.5 text-cyan-400" />
+          <span>Security Evidence</span>
+          <span className="text-[10px] text-slate-500 ml-auto font-normal">
+            (Secrets redacted automatically)
+          </span>
+        </h4>
+        <div className="bg-slate-950 p-3 rounded border border-slate-800 font-mono text-xs text-slate-300 overflow-x-auto max-h-48">
+          <pre className="whitespace-pre-wrap">
+            {typeof finding.evidence === 'string'
+              ? redactSecrets(finding.evidence)
+              : redactSecrets(JSON.stringify(finding.evidence, null, 2))}
+          </pre>
+        </div>
+      </div>
+    )}
+
+    {finding.remediation && (
+      <div>
+        <h4 className="text-xs font-mono uppercase text-slate-400 mb-1.5 flex items-center gap-1.5">
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+          <span>Remediation Guidance</span>
+        </h4>
+        <div className="bg-emerald-950/20 border border-emerald-500/20 p-3 rounded text-xs text-emerald-300/90 leading-relaxed">
+          {finding.remediation}
+        </div>
+      </div>
+    )}
+  </>
+);
 
 export const FindingsExplorerScreen: React.FC<FindingsExplorerScreenProps> = ({ scanId }) => {
   const [allFindings, setAllFindings] = useState<Finding[]>([]);
@@ -58,21 +141,7 @@ export const FindingsExplorerScreen: React.FC<FindingsExplorerScreenProps> = ({ 
       
       const spec: Finding[] = (data.spec_only_findings || []).map((f) => ({ ...f, layer: 'SPEC' as const }));
       const source: Finding[] = (data.source_only_findings || []).map((f) => ({ ...f, layer: 'SOURCE' as const }));
-      const correlated: Finding[] = (data.correlated_findings || []).map((f: any) => ({
-        id: f.id || `${f.rule_id}-${f.title}`,
-        rule_id: f.rule_id,
-        rule_version: f.rule_version,
-        title: f.title,
-        severity: (f.severity || f.spec_findings?.[0]?.severity || f.source_findings?.[0]?.severity || 'MEDIUM') as any,
-        category: f.category || f.spec_findings?.[0]?.category || f.source_findings?.[0]?.category,
-        confidence: f.confidence,
-        rationale: f.rationale,
-        remediation: f.remediation,
-        endpoint: f.matched_endpoint?.spec_path,
-        http_method: f.matched_endpoint?.spec_method,
-        layer: 'CORRELATED' as const,
-        evidence: f.evidence || f.spec_findings?.[0]?.evidence || f.source_findings?.[0]?.evidence,
-      }));
+      const correlated: Finding[] = (data.correlated_findings || []).map(mapCorrelatedFinding);
 
       const combined: Finding[] = [...correlated, ...spec, ...source];
       setAllFindings(combined);
@@ -417,36 +486,7 @@ export const FindingsExplorerScreen: React.FC<FindingsExplorerScreenProps> = ({ 
               <>
                 {/* Header info */}
                 <div className="space-y-2 border-b border-slate-800 pb-4">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-2">
-                      <SeverityBadge severity={activeFinding.severity} />
-                      <LayerBadge layer={activeFinding.layer} />
-                      {activeFinding.category && <CategoryBadge category={activeFinding.category} />}
-                    </div>
-                    <span className="text-xs font-mono text-slate-500">
-                      ID: {activeFinding.id}
-                    </span>
-                  </div>
-
-                  <h3 className="text-base font-semibold text-slate-100">
-                    {activeFinding.title}
-                  </h3>
-
-                  <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-slate-400 pt-1">
-                    <div>
-                      Rule: <span className="text-teal-400">{activeFinding.rule_id}</span>
-                    </div>
-                    {activeFinding.cwe_id && (
-                      <div>
-                        CWE: <span className="text-slate-300">{activeFinding.cwe_id}</span>
-                      </div>
-                    )}
-                    {activeFinding.confidence !== undefined && activeFinding.confidence !== null && (
-                      <div>
-                        Confidence: <span className="text-slate-300">{activeFinding.confidence}</span>
-                      </div>
-                    )}
-                  </div>
+                  <FindingHeader finding={activeFinding} />
                 </div>
 
                 {/* Endpoint & Method Location */}
@@ -466,16 +506,7 @@ export const FindingsExplorerScreen: React.FC<FindingsExplorerScreenProps> = ({ 
                   </div>
                 )}
 
-                {/* Description */}
-                <div>
-                  <h4 className="text-xs font-mono uppercase text-slate-400 mb-1.5 flex items-center gap-1.5">
-                    <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />
-                    <span>Vulnerability Description</span>
-                  </h4>
-                  <p className="text-xs text-slate-300 leading-relaxed bg-slate-950/40 p-3 rounded border border-slate-800/80">
-                    {activeFinding.description}
-                  </p>
-                </div>
+                <FindingDescription finding={activeFinding} />
 
                 {/* Source or Specification Location */}
                 {activeFinding.location && (
@@ -509,38 +540,7 @@ export const FindingsExplorerScreen: React.FC<FindingsExplorerScreenProps> = ({ 
                   </div>
                 )}
 
-                {/* Evidence (with secret redaction) */}
-                {activeFinding.evidence && (
-                  <div>
-                    <h4 className="text-xs font-mono uppercase text-slate-400 mb-1.5 flex items-center gap-1.5">
-                      <Code2 className="h-3.5 w-3.5 text-cyan-400" />
-                      <span>Security Evidence</span>
-                      <span className="text-[10px] text-slate-500 ml-auto font-normal">
-                        (Secrets redacted automatically)
-                      </span>
-                    </h4>
-                    <div className="bg-slate-950 p-3 rounded border border-slate-800 font-mono text-xs text-slate-300 overflow-x-auto max-h-48">
-                      <pre className="whitespace-pre-wrap">
-                        {typeof activeFinding.evidence === 'string'
-                          ? redactSecrets(activeFinding.evidence)
-                          : redactSecrets(JSON.stringify(activeFinding.evidence, null, 2))}
-                      </pre>
-                    </div>
-                  </div>
-                )}
-
-                {/* Remediation guidance */}
-                {activeFinding.remediation && (
-                  <div>
-                    <h4 className="text-xs font-mono uppercase text-slate-400 mb-1.5 flex items-center gap-1.5">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                      <span>Remediation Guidance</span>
-                    </h4>
-                    <div className="bg-emerald-950/20 border border-emerald-500/20 p-3 rounded text-xs text-emerald-300/90 leading-relaxed">
-                      {activeFinding.remediation}
-                    </div>
-                  </div>
-                )}
+                <FindingEvidenceAndRemediation finding={activeFinding} />
               </>
             ) : (
               <div className="p-12 text-center text-slate-500 text-xs">

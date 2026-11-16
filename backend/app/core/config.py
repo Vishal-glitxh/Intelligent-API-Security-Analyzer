@@ -9,6 +9,9 @@ _INSECURE_DEV_SECRET = "dev-insecure-session-secret-do-not-use-in-production"
 _INSECURE_DEV_API_ACCESS_TOKEN = "dev-insecure-api-access-token-do-not-use-in-production"
 _INSECURE_DEV_DATABASE_URL = "postgresql+psycopg://analyzer:analyzer@localhost:5432/api_security"
 _SUPPORTED_ENVIRONMENTS = frozenset({"development", "testing", "production"})
+_ALLOWED_OLLAMA_HOSTS = frozenset(
+    {"localhost", "127.0.0.1", "::1", "host.docker.internal", "ollama"}
+)
 _DISALLOWED_PRODUCTION_SECRETS = {
     _INSECURE_DEV_SECRET,
     _INSECURE_DEV_API_ACCESS_TOKEN,
@@ -50,6 +53,11 @@ class Settings(BaseSettings):
     ollama_embedding_model: str = ""
     local_ai_timeout_seconds: float = 20.0
     local_ai_max_context_chars: int = 6000
+    rag_index_path: str = "scratch/rag-index-v1.json"
+    rag_index_max_documents: int = 512
+    rag_index_max_chars: int = 1_000_000
+    rag_chunk_chars: int = 1000
+    rag_chunk_overlap_chars: int = 100
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -119,6 +127,9 @@ class Settings(BaseSettings):
             "SCAN_TIMEOUT_SECONDS": self.scan_timeout_seconds,
             "LOCAL_AI_TIMEOUT_SECONDS": self.local_ai_timeout_seconds,
             "LOCAL_AI_MAX_CONTEXT_CHARS": self.local_ai_max_context_chars,
+            "RAG_INDEX_MAX_DOCUMENTS": self.rag_index_max_documents,
+            "RAG_INDEX_MAX_CHARS": self.rag_index_max_chars,
+            "RAG_CHUNK_CHARS": self.rag_chunk_chars,
         }
         for name, value in positive_limits.items():
             if value <= 0:
@@ -128,18 +139,27 @@ class Settings(BaseSettings):
             raise ValueError("MAX_SPEC_BYTES cannot exceed MAX_UPLOAD_BYTES.")
         if self.max_archive_bytes > self.max_upload_bytes:
             raise ValueError("MAX_ARCHIVE_BYTES cannot exceed MAX_UPLOAD_BYTES.")
+        if self.rag_chunk_overlap_chars >= self.rag_chunk_chars:
+            raise ValueError("RAG_CHUNK_OVERLAP_CHARS must be less than RAG_CHUNK_CHARS.")
+        if self.rag_chunk_chars > 1200:
+            raise ValueError("RAG_CHUNK_CHARS cannot exceed the local embedding request limit.")
+        if not self.rag_index_path.strip():
+            raise ValueError("RAG_INDEX_PATH must not be empty.")
 
         ollama_url = urlsplit(self.ollama_base_url)
         if (
             ollama_url.scheme != "http"
-            or ollama_url.hostname not in {"localhost", "127.0.0.1", "::1", "host.docker.internal"}
+            or ollama_url.hostname not in _ALLOWED_OLLAMA_HOSTS
             or ollama_url.username
             or ollama_url.password
             or ollama_url.path not in ("", "/")
             or ollama_url.query
             or ollama_url.fragment
         ):
-            raise ValueError("OLLAMA_BASE_URL must point to a loopback address.")
+            raise ValueError(
+                "OLLAMA_BASE_URL must use a loopback host or the approved "
+                "private Ollama service name."
+            )
 
         return self
 

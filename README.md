@@ -82,11 +82,37 @@ cd frontend
 # 2. Install Node dependencies
 npm install
 
-# 3. Start Vite development server (proxies /api and /health to :8000)
+# 3. Start Vite development server (loopback-only; proxies /api and /health to :8000)
 npm run dev
 ```
 
-The analyst workstation will be available at: `http://localhost:5173`.
+The analyst workstation will be available at: `http://127.0.0.1:5173`. Vite binds to loopback by
+default. LAN access to the development server is not supported; do not override the host binding
+while `LOCAL_DEV_AUTH_BYPASS=true`. For access from another device, use a deliberate token-authenticated
+deployment instead of exposing the development proxy.
+
+### Demo: run and review a scan
+
+The application has no user-account or sign-up flow; access uses API tokens. With the example
+development configuration, the header reports **Local access** when the API is bound to loopback
+and `LOCAL_DEV_AUTH_BYPASS=true`. For a token-authenticated local demo, set `API_ACCESS_TOKEN` to a
+local test token and `LOCAL_DEV_AUTH_BYPASS=false` in `.env` before starting the API. Then choose
+**Connect API** in the workstation header and enter that token. The browser keeps it in session
+storage for the current session. `API_CLIENT_TOKENS` can instead map client IDs to tokens as JSON,
+for example `{"analyst-a":"<local-test-token>"}`. Never use development credentials or the bypass
+in production.
+
+1. In the workstation, choose **New assessment**, optionally enter a project name, select a valid
+   `.json`, `.yaml`, or `.yml` OpenAPI document, and optionally add a `.zip` source archive. Uploaded
+   source is parsed statically; the analyzer does not execute it.
+2. Choose **Start assessment** and wait for the scan summary to show `COMPLETED`. A `FAILED` scan
+   remains visibly distinct and does not contain completed findings.
+3. Open **Findings Explorer** to inspect specification, source, and correlated evidence. Choose
+   **Reports & Export** to preview or download the JSON and HTML reports.
+
+The corresponding API workflow is `POST /api/v1/scans`, then `GET /api/v1/scans/{scan_id}/findings`
+and `GET /api/v1/scans/{scan_id}/report?format=json` (use `format=html` for HTML). Each scan is
+restricted to its owning client token.
 
 ---
 
@@ -97,8 +123,25 @@ The counts below are from the dated verification runs recorded here; test counts
 Run the automated verification suite across both backend and frontend:
 
 ```bash
-# Backend test suite (345 tests in the 2026-10-27 verification run)
-uv run pytest
+set -e
+# Start a disposable PostgreSQL test instance. Do not point tests at the local
+# development Compose database or any database containing user data.
+docker run --rm -d --name iasa-test-postgres \
+  --publish 127.0.0.1:55432:5432 \
+  --tmpfs /var/lib/postgresql:rw,size=1g \
+  --env POSTGRES_DB=iasa_test \
+  --env POSTGRES_USER=iasa_test \
+  --env POSTGRES_PASSWORD=replace-with-test-only-password \
+  postgres:18
+trap 'docker stop iasa-test-postgres >/dev/null 2>&1 || true' EXIT
+until docker exec iasa-test-postgres pg_isready -U iasa_test -d iasa_test; do sleep 1; done
+
+# The test suite rejects anything except PostgreSQL databases named *_test or *_testing.
+export TEST_DATABASE_URL='postgresql+psycopg://iasa_test:replace-with-test-only-password@127.0.0.1:55432/iasa_test'
+export DATABASE_URL="$TEST_DATABASE_URL"
+export ENVIRONMENT=testing
+uv run alembic upgrade head
+uv run pytest -v --cov=backend/app --cov-report=term-missing
 
 # Backend static analysis and formatting
 uv run ruff check .
@@ -122,6 +165,39 @@ npm run lint
 npm run build
 ```
 
+### Recorded verification evidence
+
+The full backend run recorded on 2026-10-28 passed **386 tests** with **87% coverage** and two
+dependency deprecation warnings. It used a newly created disposable PostgreSQL 18 test database
+on tmpfs; `uv run alembic upgrade head` succeeded, and an isolated migration-consistency check
+reported no pending model changes. Ruff, formatting, strict MyPy, and `git diff --check` passed in
+that verification sequence. The frontend run recorded on 2026-10-27 passed 14 tests, lint, and the
+production build. The dependency audit reported no known vulnerabilities in audited distributions;
+it skipped the local project package because it was not available from PyPI.
+
+An isolated Docker Compose smoke run recorded on 2026-10-28 built an image, applied migrations,
+returned HTTP 200 from liveness and readiness, completed an authenticated scan, returned HTTP 200
+for findings and report retrieval, and returned HTTP 403 for cross-tenant retrieval. That smoke run
+used Ollama disabled and preceded the final RAG retrieval guard change; it does not verify a Docker
+image built from the final RAG code or local-model behavior. No live RAG generation was part of the
+final backend regression run.
+
+Current working-tree checks on 2026-10-29 passed **401 backend tests** with **86% coverage** and two
+dependency warnings, using a newly created PostgreSQL 18 database on tmpfs. Alembic upgrade and
+consistency checks passed. Ruff, Ruff formatting, strict MyPy, high-severity Bandit, `pip-audit`, and
+`git diff --check` passed; `pip-audit` could not audit the local project package because it is not
+published on PyPI. Frontend verification passed 14 tests, lint, and production build in a temporary
+copy so the existing `frontend/dist` and TypeScript cache were not overwritten.
+
+The current API image was built and exercised in isolated production configuration with a disposable
+PostgreSQL database. Migrations reached head; `/health/live` and `/health/ready` returned HTTP 200; an
+authenticated scan completed; findings and JSON report returned HTTP 200; and another tenant received
+HTTP 403 for both. The local Ollama status endpoint reported `llama3.2:latest` and
+`nomic-embed-text:latest` available, with the unchanged seven-document/seven-chunk index ready. One
+non-benchmark assistant request used the local model successfully. This verifies a single API process
+only. Shared coordination, durable job recovery, multi-worker behavior, and multi-replica deployment
+remain unsupported and unverified.
+
 ---
 
 ## Analyst Web UI Features (Phase 8)
@@ -144,7 +220,7 @@ Deterministic OpenAPI rules, source AST analysis, and correlation work without a
 
 When Ollama and a configured model are available, the assistant can add a structured, evidence-cited explanation and suggested next steps. Ollama is optional and contacted only at the local endpoint configured by `OLLAMA_BASE_URL` (loopback on the host, or `host.docker.internal` when Compose connects to Ollama on the host); status uses `GET /api/tags`, embeddings use `POST /api/embed`, and explanations use `POST /api/generate`. Embedding requests contain the question and up to 128 candidate document texts capped at 1,200 characters each after secret-pattern redaction; generation receives only the selected retrieved sources within the configured context budget. Uploaded source archives are not sent. HTTP redirects are rejected so a configured local Ollama endpoint cannot forward these request bodies to a redirect target. Models are never downloaded automatically.
 
-Without a local embedding model, retrieval uses lexical ranking and a deterministic hashed-vector fallback. Without a local generation model, scan and retrieval still work and report that AI was not used. Locally generated embeddings are computed per request and not persisted; there is no durable vector index or index-administration interface yet. Internet is needed only to install dependencies or explicitly pull a chosen local model; live public-reference retrieval is not enabled. Ollama can be configured to listen beyond loopback by its operator; keep it bound to localhost unless intentional network access is protected by deployment controls.
+Without a compatible local embedding index, retrieval uses lexical ranking and a deterministic hashed-vector fallback. Without a local generation model, scan and retrieval still work and report that AI was not used. Embedding indexes are local, versioned JSON files built only by an explicit command; the application never downloads models, fetches source URLs, or rebuilds an index at startup. Internet is needed only to install dependencies or explicitly pull a chosen local model. Ollama can be configured to listen beyond loopback by its operator; keep it bound to localhost unless intentional network access is protected by deployment controls.
 
 The bundled security guidance is a small, project-maintained paraphrase set adapted from the [OWASP API Security Top 10 2023](https://api-security.owasp.org/), which is licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Each returned OWASP source includes its official page URL and license label. The snippets are reference guidance, not authoritative scan evidence.
 
@@ -173,9 +249,49 @@ OLLAMA_EMBEDDING_MODEL=nomic-embed-text
 
 The authenticated status endpoint is `GET /api/v1/ai/status`; scan-specific questions use `POST /api/v1/scans/{scan_id}/assistant`. In Docker Compose, use `OLLAMA_BASE_URL=http://host.docker.internal:11434` when Ollama runs on the host.
 
+### Local retrieval index
+
+The index is optional: deterministic scans and lexical retrieval continue when it is absent or stale. Build it explicitly from the bundled guidance with the configured local embedding model, or choose lexical-only mode:
+
+```bash
+cd backend
+uv run python -m app.services.rag_index_cli rebuild
+uv run python -m app.services.rag_index_cli inspect
+uv run python -m app.services.rag_index_cli rebuild --lexical-only
+```
+
+An optional bounded JSON manifest can add reviewed documents. Each document must provide `document_id`, `title`, `source_type`, and `content`; `source_location`, `source_url`, and `license` are optional provenance fields. Use `--manifest sources.json --only-manifest` to build only those documents. IDs must be stable and unique; duplicate identical entries are deduplicated, while conflicting IDs reject the rebuild. Inputs are size bounded, normalized for common secrets, split into stable chunks, and validated before an atomic replacement. The index stores the Ollama model name and installed-model digest, vector dimensions, and chunking metadata, uses restrictive local file permissions, and is marked stale when the embedding model version or chunking configuration changes. Failed builds preserve the previous index.
+
+`hybrid-rag-retrieval-v2` is a separate 17-query protocol with manually reviewed query-specific relevant source IDs, per-query outcomes, false-positive lists, and category metrics. The recorded lexical/hash fallback result was Recall@5 0.941 and macro Precision@5 0.188; the live semantic RRF baseline reproduced those aggregate values, with 17/17 queries returning at least one out-of-label source. A separate `hybrid-rag-precision-experiment-v1` compared component and hybrid rankings without changing the query labels. Its provisional live-semantic candidate applies a 0.50 cosine floor only when the installed embedding model and persistent index are compatible: on this set it retained Recall@5 0.941, returned 61 rather than 85 sources, reduced false-positive IDs from 69 to 45, and abstained on three of four zero-relevance controls. Fixed-k macro Precision@5 remained 0.188 because its denominator stays five; precision among returned IDs increased from 0.188 to 0.262. The adversarial control still retrieved five sources, and the single missed relevant source remains. This small, model/index-specific result is a limited noise reduction, not a broad quality claim. Full per-query ranks, component scores, configurations, and hashes are in `evaluation/rag/experiments/precision-v1/RESULTS.md`; historical scanner benchmarks remain separate and unchanged.
+
+Retrieval relevance, citation validity, and answer groundedness are distinct. The v2 protocol reports retrieved source-ID validity; groundedness remains unmeasured unless a reviewer supplies an answer-hash-bound human review. Citation presence alone is not proof of support.
+
+The separate `hybrid-rag-groundedness-v1` cases at `evaluation/rag/groundedness-v1/cases.json` are a draft pending human review. The six-case review copy is `evaluation/rag/groundedness-v1/cases-review-ready-v1.json`; its manifest labels remain unchanged. The immutable r2 candidate is `evaluation/rag/groundedness-v1/candidate-runs/candidate-2026-10-28-targeted-fixes-r2/answers.json`, with its report beside it. The answers hash is `655b706267a57e941c2e5f6258a53c971b13705ac6f1bfd75195ac4357f114f9`; the report hash is `26c470b9838fa51753c031b0f0654cf8b7e1caebb13ae851c4bb5c4daa22ed20`. Use `review-template-r2-candidate-2026-10-28.json`, whose records bind to those exact answer hashes. Four cases have raw model responses and two abstained before generation; the four raw responses were rejected and the final application responses used deterministic fallbacks. The earlier temporary provenance checkpoint `/tmp/iasa-groundedness-v1-candidate-draft.json` is unavailable and has not been recreated or substituted. Review the raw and final responses, retrieved excerpts, citations, and abstention decisions using `evaluation/rag/groundedness-v1/REVIEW_GUIDE.md`. Under the original v1 process, Case 5 remains pending and the review set is not scoreable; the separately versioned v2 human review is described below.
+
+### Separate human-groundedness review v2
+
+To preserve the historical v1 protocol, the six r2 answers were also reviewed under the separate
+`hybrid-rag-groundedness-review-v2` process in `evaluation/rag/groundedness-v2/`. Its answer-bound
+review and guide separate the immutable manifest's abstention expectation, actual answer behavior,
+and reviewer judgment; Case 5's disagreement is retained rather than folded into the manifest
+metric. The recorded report at `evaluation/rag/groundedness-v2/reports/r2-review-metrics-v2.json`
+reports manifest agreement 6/6 and reviewer agreement 5/6, with separate raw/final claim and
+citation metrics. This six-case human-reviewed sample is descriptive, not a broad quality estimate
+or release approval. The v1 template remains unchanged and pending under its original process. The
+original temporary provenance checkpoint remains unavailable. The v2 review SHA-256 is
+`1e0f498c44507da64921058c6164e2bece914b8761ea38a6442cabd70aa9670e`; the metrics report SHA-256 is
+`ee213e4952f6a963fea37cdb0f9c70fb304e83163fb24725c9d95bd76cb0628e`.
+
+Run the new evaluation to a separate temporary file:
+
+```bash
+cd backend
+uv run python -m app.evaluation.rag_protocol_v2 --output /tmp/hybrid-rag-v2-results.json
+```
+
 ### Retrieval evaluation
 
-The separate `hybrid-rag-retrieval-v1` fixture set measures retrieval Recall@5 and Precision@5, retrieved source-ID validity, deterministic answer-template support, abstention, and the lexical/hashed-vector fallback. It does not score generated answers or alter scanner benchmark metrics. The eight-query protocol run recorded on 2026-10-27 achieved Recall@5 1.000, Precision@5 0.257, source-ID validity 1.000 (20/20), template-support rate 1.000 (8/8), and abstention 1.000 (1/1). The labeled expected source IDs are a small, manually reviewed conformance set; this is not a broad RAG quality or LLM groundedness claim. Latency and resource use were not measured.
+The separate `hybrid-rag-retrieval-v1` fixture set measures retrieval Recall@5 and Precision@5, retrieved source-ID validity, deterministic answer-template support, abstention, and the lexical/hashed-vector fallback. It does not score generated answers or alter scanner benchmark metrics. The eight-query protocol run recorded on 2026-10-27 achieved Recall@5 1.000, Precision@5 0.257, source-ID validity 1.000 (20/20), template-support rate 1.000 (8/8), and abstention 1.000 (1/1). The labeled expected source IDs are a small, manually reviewed conformance set; this is not a broad RAG quality or LLM groundedness claim. Latency and resource use were not measured. This historical v1 result remains unchanged by the v2 protocol.
 
 Run the evaluation into a temporary file:
 

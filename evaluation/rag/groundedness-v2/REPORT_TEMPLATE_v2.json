@@ -1,0 +1,46 @@
+{
+  "protocol_version": "hybrid-rag-groundedness-review-v2",
+  "status": "not_scored",
+  "provenance": {
+    "manifest_sha256": null,
+    "answers_sha256": null,
+    "source_review_sha256": null,
+    "source_review_file": null,
+    "review_file_sha256": null,
+    "original_provenance_checkpoint": {
+      "status": "unavailable",
+      "expected_sha256": "3f30545b06eea66fd13bb84db9a319d3178680ae2bdc20873b8514229f507bbc",
+      "role": "provenance_checkpoint_not_runtime_input"
+    }
+  },
+  "case_count": null,
+  "abstention_metrics": {
+    "manifest_agreement": {"agreements": null, "denominator": null, "rate": null},
+    "reviewer_agreement": {"agreements": null, "denominator": null, "rate": null},
+    "actual_abstentions": null,
+    "no_evidence_cases": null,
+    "actual_abstentions_on_no_evidence": null
+  },
+  "raw_response_coverage": {"generated": null, "not_generated": null, "denominator": null},
+  "claim_metrics": {
+    "raw": {
+      "claim_count": null,
+      "supported": null,
+      "unsupported": null,
+      "uncertain_excluded": null,
+      "support_rate": null,
+      "citation_ids": {"valid": null, "denominator": null, "validity_rate": null},
+      "claim_citation_relevance": {"relevant": null, "denominator": null, "rate": null}
+    },
+    "final": {
+      "claim_count": null,
+      "supported": null,
+      "unsupported": null,
+      "uncertain_excluded": null,
+      "support_rate": null,
+      "citation_ids": {"valid": null, "denominator": null, "validity_rate": null},
+      "claim_citation_relevance": {"relevant": null, "denominator": null, "rate": null}
+    }
+  },
+  "cases": []
+}

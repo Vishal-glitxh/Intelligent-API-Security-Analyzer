@@ -7,9 +7,10 @@ import math
 import re
 from collections import Counter
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from app.services.local_ai import embed_local_texts
+from app.services.rag_index import load_index
 
 
 @dataclass(frozen=True)
@@ -22,6 +23,9 @@ class _Document:
     endpoint: str | None = None
     source_url: str | None = None
     license: str | None = None
+    chunk_id: str | None = None
+    source_location: str | None = None
+    embedding: tuple[float, ...] | None = None
 
 
 _SECURITY_KNOWLEDGE = (
@@ -118,6 +122,30 @@ _SECURITY_KNOWLEDGE = (
 
 _TOKEN_RE = re.compile(r"[a-z0-9_./{}-]+", re.IGNORECASE)
 _VECTOR_SIZE = 256
+BASELINE_RANKING_POLICY = "hybrid-rrf-k60-v1"
+CONSERVATIVE_RANKING_POLICY = "hybrid-rrf-k60-semantic-min-0.50-v1"
+DEFAULT_RANKING_POLICY = CONSERVATIVE_RANKING_POLICY
+_MIN_SEMANTIC_RELEVANCE = 0.50
+_SCAN_CONTEXT_REFERENCE_RE = re.compile(
+    r"\b(?:this|the)\s+(?:endpoint|route|finding|vulnerability)\b", re.IGNORECASE
+)
+_AUTHENTICATION_QUERY_RE = re.compile(r"\b(?:auth\w*|unauthenticated|login|guard)\b", re.I)
+_AUTHENTICATION_FINDING_RE = re.compile(
+    r"\b(?:API-(?:SOURCE-)?AUTHZ?-\d+|authentication guard|authentication dependency)\b",
+    re.I,
+)
+_AUTHENTICATION_GUIDANCE_TITLE_RE = re.compile(
+    r"\b(?:authentication|identity|credential|session)\b", re.I
+)
+_OBJECT_ACCESS_PROOF_QUERY_RE = re.compile(
+    r"\b(?:attacker|another user|account|access(?:ed)?|exploit\w*|prove|proof)\b", re.I
+)
+_SECRET_DISCLOSURE_VERB_RE = re.compile(
+    r"\b(?:reveal|show|print|disclose|expose|share|provide|tell me)\b", re.I
+)
+_SECRET_DISCLOSURE_TARGET_RE = re.compile(
+    r"\b(?:prompts?|instructions?|credentials?|secrets?|api[ _-]?keys?|tokens?)\b", re.I
+)
 _STOP_WORDS = {
     "a",
     "an",
@@ -207,11 +235,25 @@ def _unit_vector(values: list[float]) -> tuple[float, ...] | None:
     return tuple(value / norm for value in values) if norm else None
 
 
+def _safe_spec_provenance(value: Any) -> str | None:
+    """Retain only bounded OpenAPI JSON Pointers as user-facing evidence references."""
+    if not isinstance(value, str) or not value.startswith("spec:/"):
+        return None
+    if any(ord(character) < 32 for character in value):
+        return None
+    pointer = value.removeprefix("spec:")
+    if any(segment == ".." for segment in pointer.split("/")):
+        return None
+    return value[:512]
+
+
 def _make_documents(
     spec_findings: list[dict[str, Any]],
     source_findings: list[dict[str, Any]],
     correlated_findings: list[dict[str, Any]],
     matched_endpoints: list[dict[str, Any]],
+    *,
+    include_knowledge: bool = True,
 ) -> tuple[_Document, ...]:
     documents: list[_Document] = []
     for layer, findings in (
@@ -240,10 +282,16 @@ def _make_documents(
                         location = {}
                     file_path = item.get("file") or location.get("file")
                     line = item.get("line") or location.get("line")
-                    if file_path:
-                        reference = f"{file_path}:{line}" if line else str(file_path)
+                    spec_provenance = _safe_spec_provenance(item.get("provenance"))
+                    file_reference = (
+                        (f"{file_path}:{line}" if line else str(file_path)) if file_path else None
+                    )
+                    references = [
+                        reference for reference in (file_reference, spec_provenance) if reference
+                    ]
+                    if references:
                         evidence_refs.append(
-                            f"evidence-{layer}-{index}-{evidence_index} ({reference})"
+                            f"evidence-{layer}-{index}-{evidence_index} ({'; '.join(references)})"
                         )
                     evidence_messages.append(
                         f"{item.get('message', '')} {file_path or ''} {line or ''}"
@@ -295,7 +343,31 @@ def _make_documents(
                 endpoint=label or None,
             )
         )
-    return tuple(documents) + _SECURITY_KNOWLEDGE
+    return tuple(documents) + (_SECURITY_KNOWLEDGE if include_knowledge else ())
+
+
+def _documents_from_index(chunks: list[dict[str, Any]]) -> tuple[_Document, ...]:
+    documents: list[_Document] = []
+    for chunk in chunks:
+        raw_vector = chunk.get("embedding")
+        vector = (
+            tuple(float(value) for value in raw_vector) if isinstance(raw_vector, list) else None
+        )
+        documents.append(
+            _Document(
+                document_id=str(chunk["document_id"]),
+                title=str(chunk["title"]),
+                content=str(chunk["text"]),
+                source_type=str(chunk["source_type"]),
+                citation=str(chunk.get("source_location") or chunk["document_id"]),
+                source_url=str(chunk.get("source_url") or "") or None,
+                license=str(chunk.get("license") or "") or None,
+                chunk_id=str(chunk["chunk_id"]),
+                source_location=str(chunk.get("source_location") or "") or None,
+                embedding=vector,
+            )
+        )
+    return tuple(documents)
 
 
 def answer_scan_question(
@@ -307,11 +379,33 @@ def answer_scan_question(
     matched_endpoints: list[dict[str, Any]],
     limit: int = 5,
     local_ai_status: dict[str, Any] | None = None,
+    ranking_policy: str = DEFAULT_RANKING_POLICY,
 ) -> dict[str, Any]:
     """Retrieve scan evidence and security guidance with lexical + vector ranking."""
-    documents = _make_documents(
-        spec_findings, source_findings, correlated_findings, matched_endpoints
+    if ranking_policy not in {BASELINE_RANKING_POLICY, CONSERVATIVE_RANKING_POLICY}:
+        raise ValueError("Unsupported RAG ranking policy.")
+    dynamic_documents = _make_documents(
+        spec_findings,
+        source_findings,
+        correlated_findings,
+        matched_endpoints,
+        include_knowledge=False,
     )
+    status_model = str(local_ai_status.get("embedding_model") or "") if local_ai_status else ""
+    status_model_digest = (
+        str(local_ai_status.get("embedding_model_digest") or "") if local_ai_status else ""
+    )
+    index_chunks, index_metadata = load_index(
+        expected_model_id=status_model or None,
+        expected_model_digest=status_model_digest or None,
+        expected_embedding_dimensions=(
+            local_ai_status.get("embedding_dimensions") if local_ai_status else None
+        ),
+    )
+    knowledge_documents = (
+        _documents_from_index(index_chunks) if index_chunks else _SECURITY_KNOWLEDGE
+    )
+    documents = dynamic_documents + tuple(knowledge_documents)
     query_tokens = Counter(_tokens(query))
     for token in tuple(query_tokens):
         for expanded in _QUERY_EXPANSIONS.get(token, ()):
@@ -320,23 +414,46 @@ def answer_scan_question(
     query_embedding = _embedding(query_features)
     doc_features = [_features(doc.title + " " + doc.content) for doc in documents]
     doc_embeddings = [_embedding(features) for features in doc_features]
-    embedding_vectors = embed_local_texts(
-        [query, *(doc.title + " " + doc.content for doc in documents)],
-        status_data=local_ai_status,
-    )
-    if embedding_vectors and len(embedding_vectors) == len(documents) + 1:
-        normalized_vectors = [_unit_vector(vector) for vector in embedding_vectors]
-        dimensions_match = len({len(vector) for vector in embedding_vectors}) == 1
-        if dimensions_match and all(vector is not None for vector in normalized_vectors):
-            query_embedding = normalized_vectors[0] or query_embedding
-            doc_embeddings = [
-                vector or _embedding(features)
-                for vector, features in zip(normalized_vectors[1:], doc_features, strict=True)
-            ]
-        else:
-            embedding_vectors = None
-    else:
-        embedding_vectors = None
+    semantic_index_used = False
+    if (
+        index_metadata.get("status") == "ready"
+        and local_ai_status
+        and local_ai_status.get("embedding_available") is True
+        and index_metadata.get("embedding_model") == status_model
+        and (
+            not status_model_digest
+            or index_metadata.get("embedding_model_digest") == status_model_digest
+        )
+    ):
+        dynamic_batch = dynamic_documents[:128]
+        embedding_vectors = embed_local_texts(
+            [query, *(doc.title + " " + doc.content for doc in dynamic_batch)],
+            status_data=local_ai_status,
+        )
+        if embedding_vectors and len(embedding_vectors) == len(dynamic_batch) + 1:
+            normalized_vectors = [_unit_vector(vector) for vector in embedding_vectors]
+            dimensions = index_metadata.get("embedding_dimensions")
+            dimensions_match = all(
+                vector is not None and len(vector) == dimensions for vector in normalized_vectors
+            ) and (
+                local_ai_status.get("embedding_dimensions") is None
+                or local_ai_status.get("embedding_dimensions") == dimensions
+            )
+            indexed_vectors_match = all(
+                document.embedding is not None and len(document.embedding) == dimensions
+                for document in knowledge_documents
+            )
+            if dimensions_match and indexed_vectors_match:
+                query_embedding = cast(tuple[float, ...], normalized_vectors[0])
+                for document, vector in zip(dynamic_batch, normalized_vectors[1:], strict=True):
+                    if vector is not None:
+                        dynamic_index = dynamic_documents.index(document)
+                        doc_embeddings[dynamic_index] = vector
+                knowledge_offset = len(dynamic_documents)
+                doc_embeddings[knowledge_offset:] = [
+                    cast(tuple[float, ...], document.embedding) for document in knowledge_documents
+                ]
+                semantic_index_used = True
 
     document_frequency: Counter[str] = Counter()
     for features in doc_features:
@@ -363,23 +480,111 @@ def answer_scan_question(
         semantic = max(0.0, _cosine(query_embedding, embedding))
         ranked.append((bm25 + semantic * 2.0, document, bm25, semantic))
 
-    ranked.sort(key=lambda item: (-item[0], item[1].document_id))
-    selected = [
-        (score, document)
-        for score, document, lexical_score, semantic_score in ranked
-        if lexical_score > 0 or semantic_score >= 0.30
-    ][:limit]
+    ranking_method = "bm25_plus_signed_hash"
+    if semantic_index_used:
+        # Reciprocal rank fusion avoids treating BM25 and model cosine scores as calibrated
+        # probabilities; k=60 is the conventional smoothing constant.
+        lexical_ranks = {
+            item[1].chunk_id or item[1].document_id: rank
+            for rank, item in enumerate(
+                sorted(
+                    ranked,
+                    key=lambda item: (-item[2], item[1].chunk_id or item[1].document_id),
+                ),
+            )
+        }
+        semantic_ranks = {
+            item[1].chunk_id or item[1].document_id: rank
+            for rank, item in enumerate(
+                sorted(
+                    ranked,
+                    key=lambda item: (-item[3], item[1].chunk_id or item[1].document_id),
+                ),
+            )
+        }
+        ranked = [
+            (
+                1.0 / (60 + lexical_ranks[item[1].chunk_id or item[1].document_id])
+                + 1.0 / (60 + semantic_ranks[item[1].chunk_id or item[1].document_id]),
+                item[1],
+                item[2],
+                item[3],
+            )
+            for item in ranked
+        ]
+        ranking_method = "reciprocal_rank_fusion_k60"
+
+    ranked.sort(key=lambda item: (-item[0], item[1].chunk_id or item[1].document_id))
+    if semantic_index_used and ranking_policy == CONSERVATIVE_RANKING_POLICY:
+        eligible = [item for item in ranked if item[3] >= _MIN_SEMANTIC_RELEVANCE]
+    else:
+        # Preserve lexical fallback and the recorded baseline policy. The conservative
+        # semantic policy only abstains when real, compatible model vectors are active.
+        eligible = [item for item in ranked if item[2] > 0 or item[3] >= 0.30]
+    selected = [(score, document) for score, document, _lexical_score, _semantic_score in eligible][
+        :limit
+    ]
+    finding_candidates = [item for item in ranked if item[1].source_type == "scan_finding"]
+    query_folded = " ".join(query.casefold().split())
+    endpoint_matches = [
+        item
+        for item in finding_candidates
+        if item[1].endpoint and " ".join(item[1].endpoint.casefold().split()) in query_folded
+    ]
+    # An explicit active-scan reference or exact endpoint mention makes the scan finding
+    # relevant by contract. Put the best matching finding first without expanding `limit`.
+    prioritized_candidates = endpoint_matches or finding_candidates
+    if (
+        limit > 0
+        and (endpoint_matches or _SCAN_CONTEXT_REFERENCE_RE.search(query))
+        and prioritized_candidates
+    ):
+        prioritized_finding = prioritized_candidates[0]
+        selected = [(prioritized_finding[0], prioritized_finding[1])] + [
+            item for item in selected if item[1] is not prioritized_finding[1]
+        ][: limit - 1]
+
+    auth_question = bool(_AUTHENTICATION_QUERY_RE.search(query))
+    if auth_question:
+        auth_findings = [
+            item
+            for item in finding_candidates
+            if _AUTHENTICATION_FINDING_RE.search(
+                f"{item[1].title} {item[1].document_id} {item[1].content}"
+            )
+        ]
+        if auth_findings:
+            auth_guidance = [
+                item
+                for item in ranked
+                if item[1].source_type == "security_knowledge"
+                and _AUTHENTICATION_GUIDANCE_TITLE_RE.search(item[1].title)
+            ]
+            auth_finding_documents = {item[1] for item in auth_findings}
+            auth_finding = next(
+                (item for item in endpoint_matches if item[1] in auth_finding_documents),
+                auth_findings[0],
+            )
+            selected = [
+                (auth_finding[0], auth_finding[1]),
+                *[(item[0], item[1]) for item in auth_guidance],
+            ]
+            selected = selected[:limit]
     sources = [
         {
-            "id": document.document_id,
+            "id": document.chunk_id or document.document_id,
             "title": document.title,
             "source_type": document.source_type,
             "citation": document.citation,
+            "document_id": document.document_id,
+            "chunk_id": document.chunk_id or document.document_id,
+            "source_location": document.source_location or document.citation,
             "source_url": document.source_url,
             "license": document.license,
             "endpoint": document.endpoint,
             "excerpt": document.content[:700],
             "relevance": round(score, 4),
+            "retrieval_method": "bm25+ollama_embedding" if semantic_index_used else "bm25+hash",
         }
         for score, document in selected
     ]
@@ -405,14 +610,87 @@ def answer_scan_question(
     else:
         answer = "No relevant scan evidence or security guidance matched that question."
 
+    has_auth_finding = any(
+        source["source_type"] == "scan_finding"
+        and (
+            "API-AUTH-" in str(source["excerpt"])
+            or "authentication" in str(source["title"]).lower()
+        )
+        for source in finding_sources
+    )
+    if auth_question and has_auth_finding:
+        answer = (
+            "Static analysis did not recognize a supported authentication guard on this route. "
+            "That does not prove the endpoint is unauthenticated or publicly reachable; review "
+            "route dependencies, upstream middleware, gateway policy, and deployed access controls."
+        )
+
+    has_object_ownership_finding = any(
+        source["source_type"] == "scan_finding"
+        and (
+            "AUTHZ" in str(source["excerpt"]).upper()
+            or re.search(
+                r"\b(?:object[- ]level authorization|ownership|owner predicate)\b",
+                str(source["title"]),
+                re.I,
+            )
+        )
+        for source in finding_sources
+    )
+    if _OBJECT_ACCESS_PROOF_QUERY_RE.search(query) and has_object_ownership_finding:
+        ownership_finding = next(
+            source
+            for source in finding_sources
+            if "AUTHZ" in str(source["excerpt"]).upper()
+            or re.search(
+                r"\b(?:object[- ]level authorization|ownership|owner predicate)\b",
+                str(source["title"]),
+                re.I,
+            )
+        )
+        endpoint = str(ownership_finding.get("endpoint") or "this endpoint")
+        finding_title = str(ownership_finding.get("title") or "Object-ownership finding")
+        answer = (
+            f"{finding_title} flags {endpoint} because static analysis did not recognize an "
+            "object-ownership check. "
+            "That does not establish that an attacker accessed another user's account; verify "
+            "effective authorization in the handler, data-access layer, and upstream controls, "
+            "and use audit evidence to determine whether access occurred."
+        )
+
+    has_upload_limit_finding = any(
+        source["source_type"] == "scan_finding"
+        and (
+            "API-RESOURCE-001" in str(source["excerpt"])
+            or "recognized total size limit" in str(source["title"]).lower()
+        )
+        for source in finding_sources
+    )
+    if has_upload_limit_finding:
+        answer += (
+            " This static evidence does not establish that resource exhaustion occurred or "
+            "that the impact is unbounded."
+        )
+
+    if _SECRET_DISCLOSURE_VERB_RE.search(query) and _SECRET_DISCLOSURE_TARGET_RE.search(query):
+        answer = "I can't reveal hidden prompts, credentials, or secrets. " + answer
+
     return {
         "answer": answer,
         "sources": sources,
         "retrieval": (
             "local_hybrid_bm25_ollama_embeddings"
-            if embedding_vectors
+            if semantic_index_used
             else "local_hybrid_bm25_hashed_vector"
         ),
+        "index_status": index_metadata.get("status", "missing"),
+        "index_version": index_metadata.get("index_version"),
+        "ranking_method": (
+            f"{ranking_method}_semantic_min_0.50"
+            if semantic_index_used and ranking_policy == CONSERVATIVE_RANKING_POLICY
+            else ranking_method
+        ),
+        "ranking_policy": ranking_policy,
         "external_network_used": False,
         "notice": (
             "Evidence-grounded retrieval only; no hosted language model or external service "

@@ -283,6 +283,14 @@ export const NewScanScreen: React.FC<NewScanScreenProps> = ({
             {visibleLocalAIStatus?.message ?? 'Scans use deterministic analysis without a hosted AI key. Ollama is optional.'}
             {visibleLocalAIStatus?.model_name ? ` Model: ${visibleLocalAIStatus.model_name}.` : ''}
           </p>
+          {visibleLocalAIStatus && (
+            <p className="mt-1 text-slate-500">
+              Retrieval index: {visibleLocalAIStatus.rag_index_status.replaceAll('_', ' ')}
+              {visibleLocalAIStatus.rag_index_chunk_count > 0
+                ? ` · ${visibleLocalAIStatus.rag_index_chunk_count} chunks`
+                : ''}
+            </p>
+          )}
         </div>
 
         {/* Validation or API Errors */}

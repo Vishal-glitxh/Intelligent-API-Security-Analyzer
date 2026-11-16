@@ -1,4 +1,5 @@
 import io
+import re
 import zipfile
 
 from app.core.config import settings
@@ -213,6 +214,26 @@ def test_findings_preservation_spec_source_correlated() -> None:
         remediation="Move secret to env var",
         evidence=(ev,),
     )
+    second_spec_finding = Finding(
+        rule_id="SPEC-002",
+        rule_version="1.0.0",
+        title="Missing Rate Limit",
+        severity=Severity.LOW,
+        confidence=0.7,
+        rationale="The operation has no documented rate limit.",
+        remediation="Apply a suitable request limit.",
+        evidence=(Evidence(kind="SPEC_RATE", message="No rate limit is specified."),),
+    )
+    second_source_finding = Finding(
+        rule_id="SRC-002",
+        rule_version="1.0.0",
+        title="Unbounded Request Loop",
+        severity=Severity.HIGH,
+        confidence=0.75,
+        rationale="The handler processes a caller-controlled collection.",
+        remediation="Bound the number of processed items.",
+        evidence=(Evidence(kind="SRC_LOOP", message="Loop bound is input-controlled."),),
+    )
     correlated_finding = CorrelatedFinding(
         rule_id="CORR-001",
         rule_version="1.0.0",
@@ -221,7 +242,18 @@ def test_findings_preservation_spec_source_correlated() -> None:
         confidence=0.95,
         rationale="Spec enforces bearer auth but source code missing auth decorator",
         remediation="Align spec and implementation",
-        evidence=(ev,),
+        evidence=(
+            Evidence(
+                kind="CORRELATED_KIND",
+                message="Synthesized correlation evidence distinct from child findings",
+                file="src/auth.py",
+                line=42,
+                source_hash="sha256:correlated-evidence",
+                provenance="correlation-rule:CORR-001",
+            ),
+        ),
+        spec_findings=(spec_finding, second_spec_finding),
+        source_findings=(source_finding, second_source_finding),
     )
 
     multi_layer_res = MultiLayerAnalysisResult(
@@ -262,6 +294,26 @@ def test_findings_preservation_spec_source_correlated() -> None:
 
         assert len(fdata["correlated_findings"]) == 1
         assert fdata["correlated_findings"][0]["rule_id"] == "CORR-001"
+        correlated_data = fdata["correlated_findings"][0]
+        assert correlated_data["severity"] == "critical"
+        assert correlated_data["confidence"] == 0.95
+        assert correlated_data["evidence"][0]["kind"] == "CORRELATED_KIND"
+        assert (
+            correlated_data["evidence"][0]["message"]
+            == "Synthesized correlation evidence distinct from child findings"
+        )
+        assert correlated_data["evidence"][0]["file"] == "src/auth.py"
+        assert correlated_data["evidence"][0]["line"] == 42
+        assert correlated_data["evidence"][0]["source_hash"] == "sha256:correlated-evidence"
+        assert correlated_data["evidence"][0]["provenance"] == "correlation-rule:CORR-001"
+        assert [item["rule_id"] for item in correlated_data["spec_findings"]] == [
+            "SPEC-001",
+            "SPEC-002",
+        ]
+        assert [item["rule_id"] for item in correlated_data["source_findings"]] == [
+            "SRC-001",
+            "SRC-002",
+        ]
 
         # 2. Verify via GET /results
         results_resp = client.get(f"/api/v1/scans/{scan.id}/results")
@@ -277,6 +329,7 @@ def test_findings_preservation_spec_source_correlated() -> None:
         assert len(jreport["spec_only_findings"]) == 1
         assert len(jreport["source_only_findings"]) == 1
         assert len(jreport["correlated_findings"]) == 1
+        assert jreport["correlated_findings"][0] == correlated_data
 
         # 4. Verify via GET /report (HTML)
         html_report_resp = client.get(f"/api/v1/scans/{scan.id}/report?format=html")
@@ -337,6 +390,40 @@ def test_scan_creation_invalid_openapi() -> None:
     html_report = client.get(f"/api/v1/scans/{scan_id}/report?format=html").text
     assert "badge-failed" in html_report
     assert "OPENAPI_PARSING_ERROR" in html_report
+
+
+def test_numeric_openapi_version_returns_sanitized_error_and_cleans_workspace() -> None:
+    """Numeric info.version stays invalid and fails through the sanitized scan contract."""
+    from app.services.scan_service import SCRATCH_SCANS_DIR
+
+    invalid_spec = b"openapi: 3.0.0\ninfo:\n  title: T\n  version: 1.0\npaths: {}"
+    response = client.post(
+        "/api/v1/scans",
+        files={
+            "openapi_file": ("openapi.yaml", invalid_spec, "application/x-yaml"),
+            "source_archive": ("source.zip", create_sample_zip(), "application/zip"),
+        },
+        data={"project_name": "Numeric OpenAPI Version Regression"},
+    )
+
+    # Scan creation follows the existing async contract: upload acceptance is 202;
+    # validation failure is reported on the resulting scan record.
+    assert response.status_code == 202
+    scan_id = response.json()["scan_id"]
+    status_response = client.get(f"/api/v1/scans/{scan_id}")
+    assert status_response.status_code == 200
+
+    scan = status_response.json()
+    error_message = scan["error_message"]
+    assert scan["status"] == "failed"
+    assert error_message.startswith("OPENAPI_PARSING_ERROR:")
+    assert "1.0 is not of type 'string'" in error_message
+    assert "sanitized_path" in error_message
+    assert "Traceback" not in error_message
+    assert not re.search(r"/(?:Users|tmp|private|home)/", error_message)
+
+    # The failed scan must not leave its extracted source workspace behind.
+    assert not (SCRATCH_SCANS_DIR / scan_id).exists()
 
 
 def test_scan_creation_invalid_file_extension() -> None:

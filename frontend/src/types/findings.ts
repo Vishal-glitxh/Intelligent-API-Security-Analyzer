@@ -1,6 +1,7 @@
 import { MatchedEndpoint } from './scan';
 
-export type Severity = 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
+type CanonicalSeverity = 'HIGH' | 'MEDIUM' | 'LOW' | 'CRITICAL' | 'INFO';
+export type Severity = CanonicalSeverity | Lowercase<CanonicalSeverity>;
 export type FindingSeverity = Severity;
 export type FindingCategory = string;
 export type FindingConfidence = string | number;
@@ -8,13 +9,13 @@ export type FindingConfidence = string | number;
 export type CorrelationState = 'SUPPORTED' | 'CONTRADICTED' | 'COMPLEMENTARY' | 'INCONCLUSIVE';
 
 export interface SourceLocation {
-  file?: string;
-  file_path?: string;
-  line?: number;
-  line_start?: number;
-  column?: number;
-  end_line?: number;
-  end_column?: number;
+  file?: string | null;
+  file_path?: string | null;
+  line?: number | null;
+  line_start?: number | null;
+  column?: number | null;
+  end_line?: number | null;
+  end_column?: number | null;
   json_pointer?: string;
 }
 
@@ -23,6 +24,13 @@ export type FindingLocation = SourceLocation;
 export interface Evidence {
   kind: string;
   message: string;
+  file?: string | null;
+  line?: number | null;
+  column?: number | null;
+  end_line?: number | null;
+  end_column?: number | null;
+  source_hash?: string | null;
+  provenance?: string | null;
   location?: SourceLocation | null;
 }
 
@@ -53,6 +61,8 @@ export interface CorrelatedFinding {
   title: string;
   category?: string;
   severity?: Severity;
+  confidence?: number;
+  evidence?: Evidence[];
   correlation_state: CorrelationState;
   matched_endpoint: MatchedEndpoint | null;
   spec_findings: Finding[];
@@ -73,16 +83,22 @@ export interface ScanAssistantResponse {
   answer: string;
   sources: Array<{
     id: string;
+    document_id?: string | null;
+    chunk_id?: string | null;
     title: string;
     source_type: string;
     citation: string;
+    source_location?: string | null;
     source_url?: string | null;
     license?: string | null;
     endpoint?: string | null;
     excerpt: string;
     relevance: number;
+    retrieval_method?: string | null;
   }>;
   retrieval: string;
+  ranking_policy: string;
+  ranking_method: string;
   external_network_used: boolean;
   notice: string;
   ai_status: 'Available' | 'Unavailable' | 'Disabled';
@@ -102,4 +118,16 @@ export interface LocalAIStatus {
   embedding_available: boolean;
   retrieval_available: boolean;
   message: string;
+  rag_index_status:
+    | 'missing'
+    | 'invalid'
+    | 'ready'
+    | 'stale_model'
+    | 'stale_chunking'
+    | 'lexical_only';
+  rag_index_version?: string | null;
+  rag_index_embedding_model?: string | null;
+  rag_index_embedding_dimensions?: number | null;
+  rag_index_document_count: number;
+  rag_index_chunk_count: number;
 }

@@ -78,11 +78,16 @@ def _serialize_matched_endpoint(endpoint: Any) -> dict[str, Any] | None:
 def _serialize_correlated_finding(corr: Any) -> dict[str, Any]:
     state = getattr(corr, "correlation_state", "")
     state_str = state.value if hasattr(state, "value") else str(state)
+    severity = getattr(corr, "severity", "")
+    severity_str = severity.value if hasattr(severity, "value") else str(severity)
 
     return {
         "rule_id": getattr(corr, "rule_id", ""),
         "rule_version": getattr(corr, "rule_version", "1.0.0"),
         "title": getattr(corr, "title", ""),
+        "severity": severity_str,
+        "confidence": getattr(corr, "confidence", 1.0),
+        "evidence": _serialize_evidence(tuple(getattr(corr, "evidence", ()))),
         "correlation_state": state_str,
         "matched_endpoint": _serialize_matched_endpoint(getattr(corr, "matched_endpoint", None)),
         "spec_findings": [_serialize_finding(f) for f in getattr(corr, "spec_findings", ())],

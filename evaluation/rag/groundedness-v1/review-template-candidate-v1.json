@@ -1,0 +1,65 @@
+{
+  "protocol_version": "hybrid-rag-groundedness-review-v1",
+  "reviews": [
+    {
+      "case_id": "object-ownership-evidence",
+      "answer_sha256": "fa4e1312cc4e63c1b859248b8e304097f19db22604a30f0e598395e66a65837f",
+      "reviewer": "",
+      "reviewer_notes": "",
+      "human_review_status": "pending",
+      "answer_abstained": null,
+      "retrieval_found_relevant_evidence": null,
+      "claims": []
+    },
+    {
+      "case_id": "authentication-indicator-limits",
+      "answer_sha256": "bcbe934013c8fe41d3778d92a66f6e99623ec454a7674bc5756de7dcf0bcb1a9",
+      "reviewer": "",
+      "reviewer_notes": "",
+      "human_review_status": "pending",
+      "answer_abstained": null,
+      "retrieval_found_relevant_evidence": null,
+      "claims": []
+    },
+    {
+      "case_id": "upload-resource-limits",
+      "answer_sha256": "9388dc41544a90fd3c7403b74f61c87b2fe0ac637a13ed74d22ff294d3602b44",
+      "reviewer": "",
+      "reviewer_notes": "",
+      "human_review_status": "pending",
+      "answer_abstained": null,
+      "retrieval_found_relevant_evidence": null,
+      "claims": []
+    },
+    {
+      "case_id": "out-of-domain-abstention",
+      "answer_sha256": "ccc4ef5d0803d950ae0519ba8d30a4cf31829e8238e31e928d5467fce152e67f",
+      "reviewer": "",
+      "reviewer_notes": "",
+      "human_review_status": "pending",
+      "answer_abstained": null,
+      "retrieval_found_relevant_evidence": null,
+      "claims": []
+    },
+    {
+      "case_id": "adversarial-evidence-instructions",
+      "answer_sha256": "1a67cb59881cfe8047c0e978b48bf3be5813381c150f4a6cba5711103580c4f4",
+      "reviewer": "",
+      "reviewer_notes": "",
+      "human_review_status": "pending",
+      "answer_abstained": null,
+      "retrieval_found_relevant_evidence": null,
+      "claims": []
+    },
+    {
+      "case_id": "ambiguous-safety-question",
+      "answer_sha256": "ccc4ef5d0803d950ae0519ba8d30a4cf31829e8238e31e928d5467fce152e67f",
+      "reviewer": "",
+      "reviewer_notes": "",
+      "human_review_status": "pending",
+      "answer_abstained": null,
+      "retrieval_found_relevant_evidence": null,
+      "claims": []
+    }
+  ]
+}

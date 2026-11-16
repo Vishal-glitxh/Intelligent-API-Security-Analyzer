@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`. Configure the API key from the header when the service requires authentication. The key is held in session storage for the active browser session.
+Open `http://127.0.0.1:5173`. Vite binds to loopback by default and proxies `/api` and `/health` to the local backend. LAN access to the development server is not a supported mode; do not override the host binding while `LOCAL_DEV_AUTH_BYPASS=true`. The application has no user-account or sign-up flow. On the loopback development server, the example configuration can show **Local access** without a token. Otherwise choose **Connect API** in the header and enter a backend-configured X-API-Key or Bearer token. The key is held in session storage for the active browser session.
 
 ## Verify changes
 

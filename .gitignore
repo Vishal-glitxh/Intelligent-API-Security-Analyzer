@@ -18,6 +18,8 @@ node_modules/
 .vscode/
 
 scratch/*.zip
+scratch/rag-index*.json
+scratch/.rag-index*.*
 scratch/runtime-test-api/
 # Phase 6 generated evaluation runs
 evaluation/runs/

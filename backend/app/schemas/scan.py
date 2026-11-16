@@ -53,14 +53,18 @@ class ScanAssistantRequest(BaseModel):
 
 class ScanAssistantSource(BaseModel):
     id: str
+    document_id: str | None = None
+    chunk_id: str | None = None
     title: str
     source_type: str
     citation: str
+    source_location: str | None = None
     source_url: str | None = None
     license: str | None = None
     endpoint: str | None = None
     excerpt: str
     relevance: float
+    retrieval_method: str | None = None
 
 
 class ScanAssistantResponse(BaseModel):
@@ -68,10 +72,13 @@ class ScanAssistantResponse(BaseModel):
     answer: str
     sources: list[ScanAssistantSource]
     retrieval: str
+    ranking_policy: str
+    ranking_method: str
     external_network_used: bool
     notice: str
     ai_status: str
     model_name: str | None = None
+    model_digest: str | None = None
     ai_used: bool
     ai_explanation: str | None = None
     recommendations: list[str] = Field(default_factory=list)
@@ -83,9 +90,18 @@ class LocalAIStatusResponse(BaseModel):
     model_name: str | None = None
     available_models: list[str]
     embedding_model: str | None = None
+    embedding_model_digest: str | None = None
+    embedding_dimensions: int | None = None
     embedding_available: bool
     retrieval_available: bool
     message: str
+    rag_index_status: str
+    rag_index_version: str | None = None
+    rag_index_embedding_model: str | None = None
+    rag_index_embedding_model_digest: str | None = None
+    rag_index_embedding_dimensions: int | None = None
+    rag_index_document_count: int = 0
+    rag_index_chunk_count: int = 0
 
 
 class AuthSessionResponse(BaseModel):
