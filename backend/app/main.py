@@ -1,51 +1,70 @@
+import asyncio
 import logging
+import os
+import socket
+import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
+from starlette.concurrency import run_in_threadpool
 
 from app.api.router import api_router
 from app.core.config import settings
 from app.core.security import ScanRateLimiter
 from app.db.session import SessionLocal
 from app.middleware.upload_body_limit import UploadBodyLimitMiddleware
-from app.repositories.scan import ScanRepository
-from app.services.scan_service import cleanup_scan_workspace, shutdown_default_job_runner
+from app.services.scan_service import shutdown_default_job_runner
+from app.services.scan_worker import process_one_claim
 
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
-    app.state.startup_recovery_complete = False
-    db = None
+    stop_workers = asyncio.Event()
+    app.state.worker_stop_event = stop_workers
+    worker_tasks: list[asyncio.Task[None]] = []
+    if settings.scan_workers_enabled:
+        base_worker_id = f"{socket.gethostname()}-{os.getpid()}-{uuid.uuid4().hex[:12]}"
+        worker_tasks = [
+            asyncio.create_task(
+                _scan_worker_loop(f"{base_worker_id}-{index + 1}", stop_workers),
+                name=f"scan-worker-{index + 1}",
+            )
+            for index in range(settings.scan_worker_count)
+        ]
+    app.state.worker_tasks = worker_tasks
     try:
-        db = SessionLocal()
-        repo = ScanRepository(db)
-        interrupted_scan_ids = repo.recover_interrupted_scans()
-        for scan_id in interrupted_scan_ids:
-            if not cleanup_scan_workspace(scan_id):
-                raise OSError("Recovered scan workspace cleanup failed.")
-        app.state.startup_recovery_complete = True
-    except Exception as exc:
-        # Keep liveness available for diagnosis, but readiness stays false until the
-        # process is restarted and recovery succeeds. Do not log DB exception details.
-        logger.error(
-            "Startup scan recovery failed (%s); readiness is disabled.", type(exc).__name__
-        )
+        yield
     finally:
-        if db is not None:
-            db.close()
-    yield
-    shutdown_default_job_runner()
+        stop_workers.set()
+        if worker_tasks:
+            await asyncio.gather(*worker_tasks, return_exceptions=True)
+        shutdown_default_job_runner()
+
+
+async def _scan_worker_loop(worker_id: str, stop_event: asyncio.Event) -> None:
+    while not stop_event.is_set():
+        try:
+            claimed = await run_in_threadpool(process_one_claim, worker_id)
+        except Exception as exc:
+            logger.error("Scan worker iteration failed (%s).", type(exc).__name__)
+            claimed = False
+        if not claimed:
+            try:
+                await asyncio.wait_for(
+                    stop_event.wait(), timeout=settings.scan_worker_poll_interval_seconds
+                )
+            except TimeoutError:
+                pass
 
 
 app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
-app.state.startup_recovery_complete = False
 cors_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
 app.add_middleware(
     CORSMiddleware,
@@ -67,17 +86,18 @@ def health() -> dict[str, str]:
 
 
 @app.get("/health/ready", tags=["system"], response_model=None)
-def readiness(request: Request) -> dict[str, str] | JSONResponse:
-    """Readiness requires successful startup recovery and a live database connection."""
-    if not getattr(request.app.state, "startup_recovery_complete", False):
-        return JSONResponse(
-            status_code=503,
-            content={"status": "not_ready", "reason": "startup_recovery_incomplete"},
-        )
-
+def readiness() -> dict[str, str] | JSONResponse:
+    """Readiness requires the shared PostgreSQL coordination store to be reachable."""
     try:
         with SessionLocal() as db:
-            db.execute(text("SELECT 1"))
+            revision = db.execute(
+                text("SELECT version_num FROM alembic_version")
+            ).scalar_one_or_none()
+            if revision != "2af81c6e9b40":
+                return JSONResponse(
+                    status_code=503,
+                    content={"status": "not_ready", "reason": "database_migrations_incomplete"},
+                )
     except SQLAlchemyError, OSError:
         return JSONResponse(
             status_code=503,

@@ -6,11 +6,13 @@ import hashlib
 import math
 import re
 from collections import Counter
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
+from app.services.assistant_policy import POLICY_REFUSAL_TEXT, is_sensitive_disclosure_request
 from app.services.local_ai import embed_local_texts
-from app.services.rag_index import load_index
+from app.services.rag_index import load_index, trusted_knowledge_excerpts
 
 
 @dataclass(frozen=True)
@@ -26,6 +28,15 @@ class _Document:
     chunk_id: str | None = None
     source_location: str | None = None
     embedding: tuple[float, ...] | None = None
+    source_category: str | None = None
+    original_filename: str | None = None
+    source_identity: str | None = None
+    source_sha256: str | None = None
+    document_sha256: str | None = None
+    char_start: int | None = None
+    char_end: int | None = None
+    page: int | None = None
+    section: str | None = None
 
 
 _SECURITY_KNOWLEDGE = (
@@ -137,14 +148,11 @@ _AUTHENTICATION_FINDING_RE = re.compile(
 _AUTHENTICATION_GUIDANCE_TITLE_RE = re.compile(
     r"\b(?:authentication|identity|credential|session)\b", re.I
 )
+_TRUSTED_INDEX_SOURCE_TYPES = frozenset(
+    {"security_knowledge", "public_security_documentation", "internal_iasa_knowledge"}
+)
 _OBJECT_ACCESS_PROOF_QUERY_RE = re.compile(
     r"\b(?:attacker|another user|account|access(?:ed)?|exploit\w*|prove|proof)\b", re.I
-)
-_SECRET_DISCLOSURE_VERB_RE = re.compile(
-    r"\b(?:reveal|show|print|disclose|expose|share|provide|tell me)\b", re.I
-)
-_SECRET_DISCLOSURE_TARGET_RE = re.compile(
-    r"\b(?:prompts?|instructions?|credentials?|secrets?|api[ _-]?keys?|tokens?)\b", re.I
 )
 _STOP_WORDS = {
     "a",
@@ -365,6 +373,15 @@ def _documents_from_index(chunks: list[dict[str, Any]]) -> tuple[_Document, ...]
                 chunk_id=str(chunk["chunk_id"]),
                 source_location=str(chunk.get("source_location") or "") or None,
                 embedding=vector,
+                source_category=str(chunk.get("source_category") or "") or None,
+                original_filename=str(chunk.get("original_filename") or "") or None,
+                source_identity=str(chunk.get("source_identity") or "") or None,
+                source_sha256=str(chunk.get("source_sha256") or "") or None,
+                document_sha256=str(chunk.get("document_sha256") or "") or None,
+                char_start=chunk.get("char_start"),
+                char_end=chunk.get("char_end"),
+                page=chunk.get("page"),
+                section=str(chunk.get("section") or "") or None,
             )
         )
     return tuple(documents)
@@ -380,10 +397,12 @@ def answer_scan_question(
     limit: int = 5,
     local_ai_status: dict[str, Any] | None = None,
     ranking_policy: str = DEFAULT_RANKING_POLICY,
+    source_types: Sequence[str] | None = None,
 ) -> dict[str, Any]:
     """Retrieve scan evidence and security guidance with lexical + vector ranking."""
     if ranking_policy not in {BASELINE_RANKING_POLICY, CONSERVATIVE_RANKING_POLICY}:
         raise ValueError("Unsupported RAG ranking policy.")
+    sensitive_request = is_sensitive_disclosure_request(query)
     dynamic_documents = _make_documents(
         spec_findings,
         source_findings,
@@ -402,9 +421,27 @@ def answer_scan_question(
             local_ai_status.get("embedding_dimensions") if local_ai_status else None
         ),
     )
-    knowledge_documents = (
-        _documents_from_index(index_chunks) if index_chunks else _SECURITY_KNOWLEDGE
-    )
+    if index_chunks:
+        approved_excerpts = trusted_knowledge_excerpts()
+        knowledge_documents = tuple(
+            document
+            for document in _documents_from_index(index_chunks)
+            if document.source_type in _TRUSTED_INDEX_SOURCE_TYPES
+            and approved_excerpts.get(document.chunk_id or document.document_id) == document.content
+        )
+    else:
+        # With no built index, use only the application-bundled corpus. Indexed
+        # content is eligible for retrieval and deterministic fallback only after
+        # the configured trust policy approves its exact chunk text.
+        knowledge_documents = _SECURITY_KNOWLEDGE
+    if source_types:
+        allowed_types = set(source_types)
+        dynamic_documents = tuple(
+            document for document in dynamic_documents if document.source_type in allowed_types
+        )
+        knowledge_documents = tuple(
+            document for document in knowledge_documents if document.source_type in allowed_types
+        )
     documents = dynamic_documents + tuple(knowledge_documents)
     query_tokens = Counter(_tokens(query))
     for token in tuple(query_tokens):
@@ -570,45 +607,146 @@ def answer_scan_question(
                 *[(item[0], item[1]) for item in auth_guidance],
             ]
             selected = selected[:limit]
-    sources = [
-        {
-            "id": document.chunk_id or document.document_id,
-            "title": document.title,
-            "source_type": document.source_type,
-            "citation": document.citation,
-            "document_id": document.document_id,
-            "chunk_id": document.chunk_id or document.document_id,
-            "source_location": document.source_location or document.citation,
-            "source_url": document.source_url,
-            "license": document.license,
-            "endpoint": document.endpoint,
-            "excerpt": document.content[:700],
-            "relevance": round(score, 4),
-            "retrieval_method": "bm25+ollama_embedding" if semantic_index_used else "bm25+hash",
-        }
-        for score, document in selected
-    ]
+    sources: list[dict[str, Any]] = []
+    for score, document in selected:
+        bundled_source = next(
+            (
+                item
+                for item in _SECURITY_KNOWLEDGE
+                if item.document_id == document.document_id and document.content in item.content
+            ),
+            None,
+        )
+        indexed_knowledge = (
+            document.chunk_id is not None and document.source_type in _TRUSTED_INDEX_SOURCE_TYPES
+        )
+        if indexed_knowledge and bundled_source is None:
+            # The configured hash allowlist authenticates normalized document text,
+            # not mutable index labels or URLs. Expose a hash-bound citation instead
+            # of presenting unanchored metadata as source provenance.
+            citation = (
+                f"Approved local content SHA-256 {document.document_sha256}; "
+                f"characters {document.char_start}-{document.char_end}"
+                if document.document_sha256
+                else "Approved local security guidance excerpt"
+            )
+            source = {
+                "id": document.chunk_id or document.document_id,
+                "title": "Approved local security guidance",
+                "source_type": document.source_type,
+                "citation": citation,
+                "document_id": (
+                    f"doc-{document.document_sha256}"
+                    if document.document_sha256
+                    else document.document_id
+                ),
+                "chunk_id": document.chunk_id or document.document_id,
+                "source_location": citation,
+                "source_url": None,
+                "license": None,
+                "source_category": (
+                    "internal_iasa_knowledge"
+                    if document.source_type == "security_knowledge"
+                    else document.source_type
+                ),
+                "original_filename": None,
+                "source_identity": None,
+                "source_sha256": None,
+                "document_sha256": document.document_sha256,
+                "char_start": document.char_start,
+                "char_end": document.char_end,
+                "page": None,
+                "section": None,
+                "endpoint": None,
+                "excerpt": document.content,
+                "relevance": round(score, 4),
+                "retrieval_method": (
+                    "bm25+ollama_embedding" if semantic_index_used else "bm25+hash"
+                ),
+            }
+        else:
+            metadata_source = bundled_source or document
+            source = {
+                "id": document.chunk_id or document.document_id,
+                "title": metadata_source.title,
+                "source_type": document.source_type,
+                "citation": metadata_source.citation,
+                "document_id": metadata_source.document_id,
+                "chunk_id": document.chunk_id or document.document_id,
+                "source_location": metadata_source.source_url or metadata_source.citation,
+                "source_url": metadata_source.source_url,
+                "license": metadata_source.license,
+                "source_category": (
+                    "internal_iasa_knowledge"
+                    if document.source_type == "security_knowledge"
+                    else document.source_type
+                ),
+                "original_filename": None,
+                "source_identity": None,
+                "source_sha256": None,
+                "document_sha256": (
+                    hashlib.sha256(metadata_source.content.encode("utf-8")).hexdigest()
+                    if bundled_source is not None
+                    else document.document_sha256
+                ),
+                "char_start": document.char_start,
+                "char_end": document.char_end,
+                "page": None,
+                "section": None,
+                "endpoint": document.endpoint,
+                "excerpt": document.content,
+                "relevance": round(score, 4),
+                "retrieval_method": (
+                    "bm25+ollama_embedding" if semantic_index_used else "bm25+hash"
+                ),
+            }
+        sources.append(source)
 
     finding_sources = [source for source in sources if source["source_type"] == "scan_finding"]
+    fallback_claims: list[dict[str, Any]] = []
+
+    def add_fallback_claim(text: str, source_ids: list[str], kind: str) -> None:
+        fallback_claims.append(
+            {
+                "claim_id": f"fallback-claim-{len(fallback_claims) + 1}",
+                "text": text,
+                "source_ids": list(dict.fromkeys(source_ids)),
+                "origin": "deterministic_fallback",
+                "kind": kind,
+            }
+        )
+
     if finding_sources:
         statements: list[str] = []
         for source in finding_sources[:3]:
             title = str(source["title"])
             endpoint = source.get("endpoint")
-            statements.append(f"{title} ({endpoint})" if endpoint else title)
-        answer = (
-            "The scan evidence most relevant to your question is: " + "; ".join(statements) + "."
+            statement = f"{title} ({endpoint})" if endpoint else title
+            claim_text = f"The scan evidence most relevant to your question includes {statement}."
+            statements.append(claim_text)
+            add_fallback_claim(claim_text, [str(source["id"])], "scan_observation")
+        qualification = (
+            "Review the cited finding evidence before treating this as a confirmed vulnerability."
         )
-        answer += (
-            " Review the cited finding evidence before treating this as a confirmed vulnerability."
+        answer = " ".join([*statements, qualification])
+        add_fallback_claim(
+            qualification,
+            [str(source["id"]) for source in finding_sources[:3]],
+            "qualification",
         )
     elif sources:
-        answer = (
+        observation = (
             "I found related endpoint mappings or security guidance, but no directly matching "
-            "scan finding. Treat these sources as review guidance, not evidence of a vulnerability."
+            "scan finding."
         )
+        qualification = "Treat these sources as review guidance, not evidence of a vulnerability."
+        answer = f"{observation} {qualification}"
+        selected_ids = [str(source["id"]) for source in sources]
+        add_fallback_claim(observation, selected_ids, "qualification")
+        add_fallback_claim(qualification, selected_ids, "qualification")
     else:
         answer = "No relevant scan evidence or security guidance matched that question."
+        add_fallback_claim(answer, [], "abstention")
 
     has_auth_finding = any(
         source["source_type"] == "scan_finding"
@@ -619,11 +757,28 @@ def answer_scan_question(
         for source in finding_sources
     )
     if auth_question and has_auth_finding:
-        answer = (
-            "Static analysis did not recognize a supported authentication guard on this route. "
-            "That does not prove the endpoint is unauthenticated or publicly reachable; review "
-            "route dependencies, upstream middleware, gateway policy, and deployed access controls."
+        auth_finding_source = next(
+            source
+            for source in finding_sources
+            if "API-AUTH-" in str(source["excerpt"])
+            or "authentication" in str(source["title"]).lower()
         )
+        auth_id = str(auth_finding_source["id"])
+        auth_observation = (
+            "Static analysis did not recognize a supported authentication guard on this route."
+        )
+        auth_qualification = (
+            "That does not prove the endpoint is unauthenticated or publicly reachable."
+        )
+        auth_recommendation = (
+            "Review route dependencies, upstream middleware, gateway policy, and deployed access "
+            "controls."
+        )
+        answer = f"{auth_observation} {auth_qualification} {auth_recommendation}"
+        fallback_claims = []
+        add_fallback_claim(auth_observation, [auth_id], "scan_observation")
+        add_fallback_claim(auth_qualification, [auth_id], "qualification")
+        add_fallback_claim(auth_recommendation, [auth_id], "recommendation")
 
     has_object_ownership_finding = any(
         source["source_type"] == "scan_finding"
@@ -650,13 +805,23 @@ def answer_scan_question(
         )
         endpoint = str(ownership_finding.get("endpoint") or "this endpoint")
         finding_title = str(ownership_finding.get("title") or "Object-ownership finding")
-        answer = (
+        ownership_id = str(ownership_finding["id"])
+        ownership_observation = (
             f"{finding_title} flags {endpoint} because static analysis did not recognize an "
-            "object-ownership check. "
-            "That does not establish that an attacker accessed another user's account; verify "
-            "effective authorization in the handler, data-access layer, and upstream controls, "
-            "and use audit evidence to determine whether access occurred."
+            "object-ownership check."
         )
+        ownership_qualification = (
+            "That does not establish that an attacker accessed another user's account."
+        )
+        ownership_recommendation = (
+            "Verify effective authorization in the handler, data-access layer, and upstream "
+            "controls, and use audit evidence to determine whether access occurred."
+        )
+        answer = f"{ownership_observation} {ownership_qualification} {ownership_recommendation}"
+        fallback_claims = []
+        add_fallback_claim(ownership_observation, [ownership_id], "scan_observation")
+        add_fallback_claim(ownership_qualification, [ownership_id], "qualification")
+        add_fallback_claim(ownership_recommendation, [ownership_id], "recommendation")
 
     has_upload_limit_finding = any(
         source["source_type"] == "scan_finding"
@@ -667,16 +832,39 @@ def answer_scan_question(
         for source in finding_sources
     )
     if has_upload_limit_finding:
-        answer += (
-            " This static evidence does not establish that resource exhaustion occurred or "
+        upload_finding = next(
+            source
+            for source in finding_sources
+            if "API-RESOURCE-001" in str(source["excerpt"])
+            or "recognized total size limit" in str(source["title"]).lower()
+        )
+        upload_qualification = (
+            "This static evidence does not establish that resource exhaustion occurred or "
             "that the impact is unbounded."
         )
+        answer += f" {upload_qualification}"
+        add_fallback_claim(upload_qualification, [str(upload_finding["id"])], "qualification")
 
-    if _SECRET_DISCLOSURE_VERB_RE.search(query) and _SECRET_DISCLOSURE_TARGET_RE.search(query):
-        answer = "I can't reveal hidden prompts, credentials, or secrets. " + answer
+    policy_refusal = POLICY_REFUSAL_TEXT if sensitive_request else None
+    if policy_refusal is not None:
+        fallback_claims.insert(
+            0,
+            {
+                "claim_id": "fallback-claim-1",
+                "text": policy_refusal,
+                "source_ids": [],
+                "origin": "deterministic_fallback",
+                "kind": "policy_refusal",
+            },
+        )
+        for claim_index, claim in enumerate(fallback_claims, start=1):
+            claim["claim_id"] = f"fallback-claim-{claim_index}"
+        answer = " ".join(claim["text"] for claim in fallback_claims)
 
     return {
         "answer": answer,
+        "policy_refusal": policy_refusal,
+        "claim_citations": fallback_claims,
         "sources": sources,
         "retrieval": (
             "local_hybrid_bm25_ollama_embeddings"

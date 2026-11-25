@@ -1,17 +1,20 @@
 """HTTP-boundary security and authorization controls for the analyzer service."""
 
+import hashlib
 import hmac
 import json
 import logging
-import time
-from collections import deque
 from dataclasses import dataclass
 
 from fastapi import Header, HTTPException, status
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import SQLAlchemyError
+from starlette.concurrency import run_in_threadpool
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.core.config import settings
+from app.db.session import SessionLocal
+from app.repositories.scan import ScanRepository
 
 logger = logging.getLogger(__name__)
 
@@ -152,15 +155,24 @@ def verify_scan_access(scan: object, client: ClientIdentity) -> None:
 
 
 class ScanRateLimiter:
-    """ASGI fixed-window limiter for expensive scan submissions.
-
-    Valid callers are keyed by authenticated client identity; invalid credentials share one
-    fixed bucket so attacker-controlled values cannot allocate buckets or evade throttling.
-    """
+    """PostgreSQL-backed fixed-window limiter shared by all API replicas."""
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
-        self._requests: dict[str, deque[float]] = {}
+
+    @staticmethod
+    def _bucket_key(identity: ClientIdentity | None) -> str:
+        stable_identity = f"client:{identity.client_id}" if identity else "unauthenticated"
+        return hashlib.sha256(stable_identity.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _consume(bucket_key: str) -> bool:
+        with SessionLocal() as db:
+            return ScanRepository(db).consume_rate_limit(
+                bucket_key,
+                settings.scan_rate_limit_window_seconds,
+                settings.scan_rate_limit_requests,
+            )
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -200,30 +212,21 @@ class ScanRateLimiter:
         ):
             identity = ClientIdentity(client_id="local-development", is_admin=True)
 
-        if identity is not None:
-            key = f"client:{identity.client_id}"
-        else:
-            # Unknown credentials all share one bucket. An attacker cannot allocate a
-            # fresh bucket with each invented token or rotate peer addresses to evade it.
-            key = "unauthenticated"
+        bucket_key = self._bucket_key(identity)
+        try:
+            admitted = await run_in_threadpool(self._consume, bucket_key)
+        except SQLAlchemyError, OSError:
+            # The shared limiter is a security boundary. Never silently fall back to a
+            # process-local quota when coordination storage is unavailable.
+            response = JSONResponse(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                content={"detail": "Scan admission is temporarily unavailable."},
+                headers={"Retry-After": "1"},
+            )
+            await response(scope, receive, send)
+            return
 
-        now = time.monotonic()
-        cutoff = now - settings.scan_rate_limit_window_seconds
-        # Remove every expired identity bucket on each scan submission. Authenticated
-        # keys come only from configured client identities; untrusted values share one
-        # fixed bucket, so request traffic cannot grow this map without bound.
-        for bucket_key, bucket in tuple(self._requests.items()):
-            while bucket and bucket[0] <= cutoff:
-                bucket.popleft()
-            if not bucket:
-                del self._requests[bucket_key]
-
-        timestamps = self._requests.get(key)
-        if timestamps is None:
-            timestamps = deque()
-            self._requests[key] = timestamps
-
-        if len(timestamps) >= settings.scan_rate_limit_requests:
+        if not admitted:
             response = JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 content={"detail": "Scan submission rate limit exceeded. Try again later."},
@@ -231,6 +234,4 @@ class ScanRateLimiter:
             )
             await response(scope, receive, send)
             return
-
-        timestamps.append(now)
         await self.app(scope, receive, send)

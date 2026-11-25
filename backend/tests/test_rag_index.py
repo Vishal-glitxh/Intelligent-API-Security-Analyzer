@@ -207,6 +207,11 @@ def test_retrieval_uses_persisted_semantic_vectors_and_reports_ranking_method(
         "embed_local_texts",
         lambda texts, status_data=None: [[1.0, 0.0] for _ in texts],
     )
+    monkeypatch.setattr(
+        rag_assistant,
+        "trusted_knowledge_excerpts",
+        lambda: {"local-guide": _document()["content"]},
+    )
     rebuild_index(
         output_path=path,
         status_data={
@@ -215,7 +220,7 @@ def test_retrieval_uses_persisted_semantic_vectors_and_reports_ranking_method(
             "embedding_model_digest": "sha256:test-digest-1",
             "embedding_dimensions": 2,
         },
-        extra_documents=[_document()],
+        extra_documents=[{**_document(), "source_type": "security_knowledge"}],
     )
     result = answer_scan_question(
         "How do I verify object ownership?",

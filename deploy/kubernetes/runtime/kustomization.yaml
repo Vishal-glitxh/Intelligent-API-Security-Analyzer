@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: iasa
+resources:
+  - deployment.yaml
+  - service.yaml
+  - poddisruptionbudget.yaml
+images:
+  - name: iasa-api
+    newName: registry.example.invalid/iasa-api
+    newTag: replace-with-immutable-tag

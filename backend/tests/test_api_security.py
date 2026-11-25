@@ -3,6 +3,7 @@ import io
 import uuid
 import zipfile
 from collections.abc import Generator
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
@@ -19,7 +20,8 @@ from app.core.security import (
     register_test_client_token,
     verify_scan_access,
 )
-from app.db.session import get_db
+from app.db.models import ScanRateBucket
+from app.db.session import SessionLocal, get_db
 from app.main import app
 from app.repositories.scan import ScanRepository
 from app.services.archive import extract_source_archive, validate_spec_upload
@@ -62,12 +64,10 @@ def cleanup_tokens() -> Generator[None]:
 
 
 def _clear_application_rate_limit_buckets() -> None:
-    middleware = app.middleware_stack
-    while middleware is not None:
-        if isinstance(middleware, ScanRateLimiter):
-            middleware._requests.clear()
-            return
-        middleware = getattr(middleware, "app", None)
+    # The test guard points SessionLocal exclusively at the disposable PostgreSQL DB.
+    with SessionLocal() as db:
+        db.query(ScanRateBucket).delete()
+        db.commit()
 
 
 @pytest.fixture(autouse=True)
@@ -162,42 +162,6 @@ def test_malformed_client_token_json_is_ignored_with_sanitized_warning(
     assert sensitive_marker not in caplog.text
 
 
-def test_rate_limit_identity_is_shared_between_api_key_and_bearer_headers() -> None:
-    register_test_client_token("same-token", "same-client")
-
-    async def passthrough(scope: Scope, receive: Receive, send: Send) -> None:
-        return None
-
-    limiter = ScanRateLimiter(cast(ASGIApp, passthrough))
-
-    async def invoke(header: tuple[bytes, bytes]) -> None:
-        async def receive() -> Message:
-            return {"type": "http.request", "body": b"", "more_body": False}
-
-        async def send(message: Message) -> None:
-            return None
-
-        await limiter(
-            cast(
-                Scope,
-                {
-                    "type": "http",
-                    "method": "POST",
-                    "path": "/api/v1/scans",
-                    "headers": [header],
-                    "client": ("127.0.0.1", 1234),
-                },
-            ),
-            receive,
-            send,
-        )
-
-    asyncio.run(invoke((b"x-api-key", b"same-token")))
-    asyncio.run(invoke((b"authorization", b"Bearer same-token")))
-    assert list(limiter._requests) == ["client:same-client"]
-    assert len(limiter._requests["client:same-client"]) == 2
-
-
 def _invoke_rate_limiter(
     limiter: ScanRateLimiter,
     header: tuple[bytes, bytes],
@@ -244,74 +208,56 @@ def _invoke_rate_limiter(
     return status_codes[0], passed_downstream
 
 
-def test_rate_limiter_cleans_expired_buckets_with_controlled_clock(
+def test_scan_rate_limit_is_shared_across_instances_and_resets_expired_bucket(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    now = [100.0]
-    monkeypatch.setattr("app.core.security.time.monotonic", lambda: now[0])
+    from app.core.security import ClientIdentity
+    from app.db.session import SessionLocal
+
     monkeypatch.setattr(settings, "scan_rate_limit_requests", 1)
-    monkeypatch.setattr(settings, "scan_rate_limit_window_seconds", 10)
-    for token, client_id in (("first-token", "first"), ("second-token", "second")):
-        register_test_client_token(token, client_id)
+    monkeypatch.setattr(settings, "scan_rate_limit_window_seconds", 30)
+    first = ScanRateLimiter(cast(ASGIApp, lambda scope, receive, send: None))
+    second = ScanRateLimiter(cast(ASGIApp, lambda scope, receive, send: None))
+    key = first._bucket_key(ClientIdentity("shared-client"))
+    try:
+        assert first._consume(key) is True
+        assert second._consume(key) is False
+        with SessionLocal() as db:
+            bucket = db.get(ScanRateBucket, key)
+            assert bucket is not None
+            bucket.window_started_at = datetime.now(UTC) - timedelta(minutes=1)
+            db.commit()
+        assert second._consume(key) is True
+    finally:
+        with SessionLocal() as db:
+            db.delete(db.get(ScanRateBucket, key))
+            db.commit()
 
-    limiter = ScanRateLimiter(cast(ASGIApp, lambda scope, receive, send: None))
-    assert _invoke_rate_limiter(limiter, (b"x-api-key", b"first-token"))[0] == 202
-    assert _invoke_rate_limiter(limiter, (b"x-api-key", b"second-token"))[0] == 202
-    assert len(limiter._requests) == 2
 
-    now[0] = 110.0
-    assert _invoke_rate_limiter(limiter, (b"x-api-key", b"first-token"))[0] == 202
-    assert len(limiter._requests) == 1
-    assert len(next(iter(limiter._requests.values()))) == 1
-
-
-def test_unique_invalid_tokens_and_peer_addresses_share_bounded_bucket_without_blocking_clients(
+def test_unique_invalid_tokens_share_one_bounded_database_bucket(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    from app.db.session import SessionLocal
+    from sqlalchemy import select
+
     monkeypatch.setattr(settings, "scan_rate_limit_requests", 2)
-    monkeypatch.setattr(settings, "scan_rate_limit_window_seconds", 60)
     limiter = ScanRateLimiter(cast(ASGIApp, lambda scope, receive, send: None))
-    for index in range(2):
-        assert _invoke_rate_limiter(
-            limiter,
-            (b"x-api-key", f"invalid-{index}".encode()),
-            client_host=f"203.0.113.{index + 1}",
-        ) == (202, True)
-    assert _invoke_rate_limiter(
-        limiter, (b"x-api-key", b"invalid-third"), client_host="203.0.113.3"
-    ) == (429, False)
-    assert list(limiter._requests) == ["unauthenticated"]
-    assert len(limiter._requests["unauthenticated"]) == 2
-
-    register_test_client_token("legitimate-token", "legitimate-client")
-    assert _invoke_rate_limiter(limiter, (b"x-api-key", b"legitimate-token")) == (202, True)
-    assert set(limiter._requests) == {"unauthenticated", "client:legitimate-client"}
-
-
-def test_non_ascii_invalid_credentials_are_throttled_without_comparison_errors() -> None:
-    limiter = ScanRateLimiter(cast(ASGIApp, lambda scope, receive, send: None))
-    assert _invoke_rate_limiter(limiter, (b"x-api-key", b"\xff")) == (202, True)
-    assert list(limiter._requests) == ["unauthenticated"]
-
-
-def test_rate_limiter_expires_all_identity_buckets_before_admitting_new_window(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    now = [200.0]
-    monkeypatch.setattr("app.core.security.time.monotonic", lambda: now[0])
-    monkeypatch.setattr(settings, "scan_rate_limit_requests", 1)
-    monkeypatch.setattr(settings, "scan_rate_limit_window_seconds", 10)
-    register_test_client_token("first-token", "first-client")
-    register_test_client_token("second-token", "second-client")
-    limiter = ScanRateLimiter(cast(ASGIApp, lambda scope, receive, send: None))
-
-    assert _invoke_rate_limiter(limiter, (b"x-api-key", b"first-token")) == (202, True)
-    assert _invoke_rate_limiter(limiter, (b"x-api-key", b"second-token")) == (202, True)
-    now[0] = 210.0
-
-    assert _invoke_rate_limiter(limiter, (b"x-api-key", b"first-token")) == (202, True)
-    assert set(limiter._requests) == {"client:first-client"}
-    assert _invoke_rate_limiter(limiter, (b"x-api-key", b"first-token")) == (429, False)
+    first = limiter._bucket_key(None)
+    try:
+        assert _invoke_rate_limiter(limiter, (b"x-api-key", b"invalid-one")) == (202, True)
+        assert _invoke_rate_limiter(limiter, (b"x-api-key", b"invalid-two")) == (202, True)
+        assert _invoke_rate_limiter(limiter, (b"x-api-key", b"invalid-three")) == (429, False)
+        with SessionLocal() as db:
+            keys = list(
+                db.scalars(
+                    select(ScanRateBucket.bucket_key).where(ScanRateBucket.bucket_key == first)
+                )
+            )
+            assert keys == [first]
+    finally:
+        with SessionLocal() as db:
+            db.delete(db.get(ScanRateBucket, first))
+            db.commit()
 
 
 # ==============================================================================

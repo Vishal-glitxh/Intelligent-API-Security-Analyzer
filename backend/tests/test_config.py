@@ -39,6 +39,8 @@ def test_supported_environment_labels_are_normalized() -> None:
         database_url=PRODUCTION_DATABASE_URL,
         session_secret="secure-production-session-secret-over-32-characters",
         api_access_token="secure-production-api-access-token-over-32-characters",
+        artifact_storage_backend="s3",
+        artifact_storage_bucket="iasa-production-artifacts",
     )
 
     assert development.environment == "development"
@@ -126,6 +128,8 @@ def test_production_accepts_secure_secret() -> None:
         database_url=PRODUCTION_DATABASE_URL,
         session_secret=valid_secret,
         api_access_token=valid_api_token,
+        artifact_storage_backend="s3",
+        artifact_storage_bucket="iasa-production-artifacts",
     )
     assert settings.session_secret == valid_secret
 
@@ -194,6 +198,8 @@ def test_production_accepts_explicit_database_url_and_strong_credentials() -> No
         session_secret="secure-production-session-secret-over-32-characters",
         api_access_token="secure-production-api-access-token-over-32-characters",
         local_dev_auth_bypass=False,
+        artifact_storage_backend="s3",
+        artifact_storage_bucket="iasa-production-artifacts",
     )
     assert config.database_url == PRODUCTION_DATABASE_URL
 
@@ -205,6 +211,8 @@ def test_production_accepts_private_ollama_service_name() -> None:
         session_secret="secure-production-session-secret-over-32-characters",
         api_access_token="secure-production-api-access-token-over-32-characters",
         ollama_base_url="http://ollama:11434",
+        artifact_storage_backend="s3",
+        artifact_storage_bucket="iasa-production-artifacts",
     )
     assert config.ollama_base_url == "http://ollama:11434"
 
@@ -216,5 +224,7 @@ def test_production_rejects_unapproved_remote_ollama_host() -> None:
             database_url=PRODUCTION_DATABASE_URL,
             session_secret="secure-production-session-secret-over-32-characters",
             api_access_token="secure-production-api-access-token-over-32-characters",
+            artifact_storage_backend="s3",
+            artifact_storage_bucket="iasa-production-artifacts",
             ollama_base_url="http://unapproved.example:11434",
         )

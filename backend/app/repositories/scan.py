@@ -1,12 +1,30 @@
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
 from app.analysis.correlation import MultiLayerAnalysisResult
-from app.db.models import AuditEvent, Scan, ScanResult
+from app.db.models import AuditEvent, CoordinationLock, Scan, ScanRateBucket, ScanResult
 from app.schemas.worker import AnalysisWorkerOutput
-from sqlalchemy import func, select, update
+from sqlalchemy import case, delete, func, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
+
+
+@dataclass(frozen=True)
+class ClaimedScan:
+    scan_id: uuid.UUID
+    lease_token: uuid.UUID
+    spec_artifact_key: str
+    source_artifact_key: str | None
+    spec_filename: str
+    source_filename: str
+    spec_hash: str | None
+    client_id: str | None
+
+
+class ScanCapacityError(ValueError):
+    pass
 
 
 def _serialize_evidence(evidence_tuple: tuple[Any, ...]) -> list[dict[str, Any]]:
@@ -109,8 +127,14 @@ class ScanRepository:
         spec_hash: str | None = None,
         source_hash: str | None = None,
         client_id: str | None = None,
+        scan_id: uuid.UUID | None = None,
+        spec_artifact_key: str | None = None,
+        source_artifact_key: str | None = None,
+        spec_content_type: str = "application/octet-stream",
+        source_content_type: str | None = None,
     ) -> Scan:
         scan = Scan(
+            id=scan_id or uuid.uuid4(),
             project_name=project_name,
             status="QUEUED",
             spec_filename=spec_filename,
@@ -118,11 +142,183 @@ class ScanRepository:
             spec_hash=spec_hash,
             source_hash=source_hash,
             client_id=client_id,
+            spec_artifact_key=spec_artifact_key,
+            source_artifact_key=source_artifact_key,
+            spec_content_type=spec_content_type,
+            source_content_type=source_content_type,
         )
         self.db.add(scan)
         self.db.commit()
         self.db.refresh(scan)
         return scan
+
+    def enqueue_scan(
+        self,
+        *,
+        scan_id: uuid.UUID,
+        project_name: str,
+        spec_filename: str,
+        source_filename: str,
+        spec_hash: str,
+        source_hash: str | None,
+        client_id: str,
+        spec_artifact_key: str,
+        source_artifact_key: str | None,
+        spec_content_type: str,
+        source_content_type: str | None,
+        max_active: int,
+        max_per_client: int,
+    ) -> Scan:
+        """Atomically enforce shared capacity and persist a durable queued scan."""
+        lock = self.db.scalar(
+            select(CoordinationLock)
+            .where(CoordinationLock.lock_name == "scan-admission")
+            .with_for_update()
+        )
+        if lock is None:
+            raise RuntimeError("Shared scan admission migration is not installed.")
+        active_total = self.count_active_scans()
+        if active_total >= max_active:
+            raise ScanCapacityError(
+                "SCAN_QUEUE_CAPACITY_EXCEEDED: Maximum queue capacity reached "
+                f"({active_total}/{max_active} active scans)."
+            )
+        active_client = self.count_client_active_scans(client_id)
+        if active_client >= max_per_client:
+            raise ScanCapacityError("CLIENT_CONCURRENCY_LIMIT_EXCEEDED: Client scan limit reached.")
+        scan = Scan(
+            id=scan_id,
+            project_name=project_name,
+            status="QUEUED",
+            spec_filename=spec_filename,
+            source_filename=source_filename,
+            spec_hash=spec_hash,
+            source_hash=source_hash,
+            client_id=client_id,
+            spec_artifact_key=spec_artifact_key,
+            source_artifact_key=source_artifact_key,
+            spec_content_type=spec_content_type,
+            source_content_type=source_content_type,
+        )
+        self.db.add(scan)
+        self.db.commit()
+        self.db.refresh(scan)
+        return scan
+
+    def claim_next_scan(
+        self, *, worker_id: str, lease_seconds: float, max_attempts: int
+    ) -> ClaimedScan | None:
+        """Claim one queued or expired job using PostgreSQL row-lock skipping."""
+        self.db.execute(
+            update(Scan)
+            .where(
+                Scan.status == "RUNNING",
+                Scan.lease_expires_at <= func.now(),
+                Scan.attempt_count >= max_attempts,
+            )
+            .values(
+                status="FAILED",
+                error_message="WORKER_RETRY_LIMIT: Scan worker lease expired too many times.",
+                completed_at=func.now(),
+                lease_owner=None,
+                lease_token=None,
+                lease_expires_at=None,
+            )
+        )
+        self.db.flush()
+        scan = self.db.scalar(
+            select(Scan)
+            .where(
+                (Scan.status == "QUEUED")
+                | (
+                    (Scan.status == "RUNNING")
+                    & (Scan.lease_expires_at <= func.now())
+                    & (Scan.attempt_count < max_attempts)
+                )
+            )
+            .order_by(Scan.created_at)
+            .limit(1)
+            .with_for_update(skip_locked=True)
+        )
+        if scan is None:
+            self.db.commit()
+            return None
+        token = uuid.uuid4()
+        scan.status = "RUNNING"
+        scan.lease_owner = worker_id
+        scan.lease_token = token
+        scan.lease_expires_at = func.now() + func.make_interval(0, 0, 0, 0, 0, 0, lease_seconds)
+        scan.attempt_count += 1
+        scan.started_at = scan.started_at or func.now()
+        self.db.commit()
+        return ClaimedScan(
+            scan_id=scan.id,
+            lease_token=token,
+            spec_artifact_key=scan.spec_artifact_key or "",
+            source_artifact_key=scan.source_artifact_key,
+            spec_filename=scan.spec_filename,
+            source_filename=scan.source_filename,
+            spec_hash=scan.spec_hash,
+            client_id=scan.client_id,
+        )
+
+    def retry_claimed_scan(
+        self, scan_id: uuid.UUID, lease_token: uuid.UUID, error_message: str, max_attempts: int
+    ) -> bool:
+        scan = self.db.scalar(select(Scan).where(Scan.id == scan_id).with_for_update())
+        if scan is None or scan.status != "RUNNING" or scan.lease_token != lease_token:
+            self.db.rollback()
+            return False
+        if scan.attempt_count < max_attempts:
+            scan.status = "QUEUED"
+            scan.error_message = error_message
+            scan.lease_owner = None
+            scan.lease_token = None
+            scan.lease_expires_at = None
+            scan.started_at = None
+        else:
+            scan.status = "FAILED"
+            scan.error_message = error_message
+            scan.completed_at = func.now()
+            scan.lease_owner = None
+            scan.lease_token = None
+            scan.lease_expires_at = None
+        self.db.commit()
+        return True
+
+    def renew_claimed_scan(
+        self, scan_id: uuid.UUID, lease_token: uuid.UUID, lease_seconds: float
+    ) -> bool:
+        result = self.db.execute(
+            update(Scan)
+            .where(
+                Scan.id == scan_id,
+                Scan.status == "RUNNING",
+                Scan.lease_token == lease_token,
+            )
+            .values(
+                lease_expires_at=func.now() + func.make_interval(0, 0, 0, 0, 0, 0, lease_seconds)
+            )
+            .returning(Scan.id)
+        )
+        self.db.commit()
+        return result.scalar_one_or_none() is not None
+
+    def fail_claimed_scan(
+        self, scan_id: uuid.UUID, lease_token: uuid.UUID, error_message: str
+    ) -> bool:
+        scan = self.db.scalar(select(Scan).where(Scan.id == scan_id).with_for_update())
+        if scan is None or scan.status != "RUNNING" or scan.lease_token != lease_token:
+            self.db.rollback()
+            return False
+        scan.status = "FAILED"
+        scan.error_message = error_message
+        scan.completed_at = func.now()
+        scan.lease_owner = None
+        scan.lease_token = None
+        scan.lease_expires_at = None
+        self.db.commit()
+        return True
 
     def count_active_scans(self) -> int:
         """Count total scans currently in QUEUED or RUNNING states."""
@@ -137,6 +333,40 @@ class ScanRepository:
             .where(Scan.client_id == client_id, Scan.status.in_(["QUEUED", "RUNNING"]))
         )
         return int(self.db.scalar(stmt) or 0)
+
+    def consume_rate_limit(self, bucket_key: str, window_seconds: int, maximum: int) -> bool:
+        """Atomically consume a shared PostgreSQL fixed-window rate-limit slot."""
+        interval = func.make_interval(0, 0, 0, 0, 0, 0, window_seconds)
+        expired = ScanRateBucket.window_started_at <= func.now() - interval
+        self.db.execute(delete(ScanRateBucket).where(expired))
+        statement = (
+            pg_insert(ScanRateBucket)
+            .values(
+                bucket_key=bucket_key,
+                window_started_at=func.now(),
+                request_count=1,
+            )
+            .on_conflict_do_update(
+                index_elements=[ScanRateBucket.bucket_key],
+                set_={
+                    "window_started_at": case(
+                        (expired, func.now()), else_=ScanRateBucket.window_started_at
+                    ),
+                    "request_count": case(
+                        (expired, 1),
+                        (
+                            ScanRateBucket.request_count < maximum + 1,
+                            ScanRateBucket.request_count + 1,
+                        ),
+                        else_=maximum + 1,
+                    ),
+                },
+            )
+            .returning(ScanRateBucket.request_count)
+        )
+        count = self.db.scalar(statement)
+        self.db.commit()
+        return int(count or 0) <= maximum
 
     def list_scans(
         self,
@@ -182,11 +412,18 @@ class ScanRepository:
         self.db.execute(stmt)
         self.db.commit()
 
-    def save_worker_output(self, worker_output: AnalysisWorkerOutput) -> ScanResult | None:
+    def save_worker_output(
+        self, worker_output: AnalysisWorkerOutput, lease_token: uuid.UUID | None = None
+    ) -> ScanResult | None:
         """Persist AnalysisWorkerOutput to database updating Scan status & ScanResult."""
         scan_uuid = uuid.UUID(worker_output.scan_id)
-        scan = self.get_scan(scan_uuid)
+        scan = self.db.scalar(select(Scan).where(Scan.id == scan_uuid).with_for_update())
         if not scan:
+            return None
+        if lease_token is not None and (
+            scan.status != "RUNNING" or scan.lease_token != lease_token
+        ):
+            self.db.rollback()
             return None
 
         now = datetime.now(UTC)
@@ -198,6 +435,9 @@ class ScanRepository:
             scan.status = "FAILED"
             scan.error_message = err_msg
             scan.completed_at = now
+            scan.lease_owner = None
+            scan.lease_token = None
+            scan.lease_expires_at = None
             self.db.commit()
             return None
 
@@ -223,6 +463,9 @@ class ScanRepository:
 
         scan.status = "COMPLETED"
         scan.completed_at = now
+        scan.lease_owner = None
+        scan.lease_token = None
+        scan.lease_expires_at = None
         self.db.add(scan_result)
 
         # Audit Event logging

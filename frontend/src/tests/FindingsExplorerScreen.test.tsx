@@ -2,6 +2,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import {
+  AssistantResponseAttribution,
   FindingDescription,
   FindingEvidenceAndRemediation,
   FindingHeader,
@@ -173,5 +174,108 @@ describe('Findings Explorer details', () => {
     expect(finding.confidence).toBeNull();
     expect(markup).not.toContain('Confidence:');
     expect(markup).toContain('Child specification evidence.');
+  });
+});
+
+describe('Findings Explorer assistant attribution', () => {
+  it('shows the policy refusal separately and labels deterministic claim evidence', () => {
+    const markup = renderToStaticMarkup(
+      <AssistantResponseAttribution
+        response={{
+          policy_refusal: "I can't reveal credentials or secrets.",
+          claim_citations: [
+            {
+              claim_id: 'fallback-claim-1',
+              text: 'Static analysis did not recognize an authentication guard.',
+              source_ids: ['finding-1'],
+              origin: 'deterministic_fallback',
+              kind: 'scan_observation',
+            },
+            {
+              claim_id: 'fallback-claim-2',
+              text: "I can't reveal credentials or secrets.",
+              source_ids: [],
+              origin: 'deterministic_fallback',
+              kind: 'policy_refusal',
+            },
+          ],
+          sources: [
+            {
+              id: 'finding-1',
+              title: 'Missing recognized authentication guard',
+              source_type: 'scan_finding',
+              citation: 'src/routes.py:42',
+              excerpt: 'Static analysis did not recognize an authentication guard.',
+              relevance: 1,
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(markup).toContain('Assistant policy refusal');
+    expect(markup).toContain('I can&#x27;t reveal credentials or secrets.');
+    expect(markup).toContain('Deterministic analysis');
+    expect(markup).toContain('Missing recognized authentication guard');
+    expect(markup).toContain('src/routes.py:42');
+  });
+
+  it('distinguishes model claim attribution and tolerates older responses without new fields', () => {
+    const markup = renderToStaticMarkup(
+      <>
+        <AssistantResponseAttribution
+          response={{
+            claim_citations: [
+              {
+                claim_id: 'model-claim-1',
+                text: 'Apply authorization checks to each resource.',
+                source_ids: ['guide-1'],
+                origin: 'local_model',
+                kind: 'general_guidance',
+              },
+            ],
+            sources: [
+              {
+                id: 'guide-1',
+                title: 'Object-level authorization',
+                source_type: 'security_knowledge',
+                citation: 'OWASP API1',
+                excerpt: 'Apply authorization checks to each resource.',
+                relevance: 0.9,
+              },
+            ],
+          }}
+        />
+        <AssistantResponseAttribution response={{ sources: [] }} />
+      </>,
+    );
+
+    expect(markup).toContain('Local model');
+    expect(markup).toContain('Object-level authorization');
+    expect(markup).toContain('OWASP API1');
+    expect(markup).toContain('general guidance');
+  });
+
+  it('renders a no-evidence abstention without inventing a source', () => {
+    const markup = renderToStaticMarkup(
+      <AssistantResponseAttribution
+        response={{
+          policy_refusal: "I can't reveal credentials or secrets.",
+          claim_citations: [
+            {
+              claim_id: 'fallback-claim-1',
+              text: 'No relevant scan evidence or security guidance matched that question.',
+              source_ids: [],
+              origin: 'deterministic_fallback',
+              kind: 'abstention',
+            },
+          ],
+          sources: [],
+        }}
+      />,
+    );
+
+    expect(markup).toContain('No relevant scan evidence');
+    expect(markup).toContain('No retrieved source cited.');
   });
 });

@@ -74,6 +74,11 @@ def test_semantic_threshold_abstains_when_only_weakly_related_sources_exist(
     monkeypatch.setattr(rag_assistant, "load_index", lambda **_: ([chunk], metadata))
     monkeypatch.setattr(
         rag_assistant,
+        "trusted_knowledge_excerpts",
+        lambda: {"owasp-api1": chunk["text"]},
+    )
+    monkeypatch.setattr(
+        rag_assistant,
         "embed_local_texts",
         lambda texts, **_: [[0.49, (1 - 0.49**2) ** 0.5]],
     )
@@ -131,6 +136,11 @@ def test_semantic_threshold_preserves_strong_source_id_and_provenance(
         "index_version": "test-index",
     }
     monkeypatch.setattr(rag_assistant, "load_index", lambda **_: ([chunk], metadata))
+    monkeypatch.setattr(
+        rag_assistant,
+        "trusted_knowledge_excerpts",
+        lambda: {"owasp-api1#chunk-0001": chunk["text"]},
+    )
     monkeypatch.setattr(rag_assistant, "embed_local_texts", lambda texts, **_: [[0.8, 0.6]])
 
     result = rag_assistant.answer_scan_question(
@@ -149,7 +159,8 @@ def test_semantic_threshold_preserves_strong_source_id_and_provenance(
 
     assert result["sources"][0]["id"] == "owasp-api1#chunk-0001"
     assert result["sources"][0]["document_id"] == "owasp-api1"
-    assert result["sources"][0]["source_location"] == "https://example.invalid/api1"
+    assert result["sources"][0]["source_url"] is None
+    assert result["sources"][0]["source_location"] == "Approved local security guidance excerpt"
     assert result["ranking_method"] == "reciprocal_rank_fusion_k60_semantic_min_0.50"
     assert "vulnerability_confidence" not in result["sources"][0]
 

@@ -14,6 +14,7 @@ from app.services.archive import (
     validate_source_archive_filename,
     validate_spec_upload,
 )
+from app.services.artifact_storage import get_artifact_storage
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -69,6 +70,74 @@ class ScanService:
         self.repo = ScanRepository(db)
         self._owns_job_runner = job_runner is not None
         self.job_runner = job_runner or get_default_job_runner()
+
+    def enqueue_scan(
+        self,
+        project_name: str,
+        spec_filename: str,
+        spec_bytes: bytes,
+        source_filename: str,
+        source_bytes: bytes,
+        client_id: str,
+        spec_content_type: str = "application/octet-stream",
+        source_content_type: str | None = None,
+    ) -> uuid.UUID:
+        """Validate uploads, store shared artifacts, and atomically enqueue a durable scan."""
+        validate_spec_upload(spec_filename, spec_bytes, settings.max_spec_bytes)
+        if len(source_bytes) > settings.max_archive_bytes:
+            raise ValueError("UPLOAD_TOO_LARGE: Source archive exceeds the configured limit.")
+        if source_bytes:
+            validate_source_archive_filename(source_filename)
+
+        scan_id = uuid.uuid4()
+        spec_hash = hashlib.sha256(spec_bytes).hexdigest()
+        source_hash = hashlib.sha256(source_bytes).hexdigest() if source_bytes else None
+        storage = get_artifact_storage()
+        spec_key = f"scans/{scan_id}/spec"
+        source_key = f"scans/{scan_id}/source" if source_bytes else None
+        stored_keys: list[str] = []
+        validation_workspace = SCRATCH_SCANS_DIR / str(scan_id) / "validation"
+        try:
+            # Validate archive structure and extraction limits before accepting the job.
+            if source_bytes:
+                extract_source_archive(
+                    source_bytes,
+                    validation_workspace / "source",
+                    max_archive_size_bytes=settings.max_archive_bytes,
+                    max_uncompressed_total_bytes=settings.max_uncompressed_bytes,
+                    max_file_count=settings.max_files_per_scan,
+                    max_individual_file_bytes=settings.max_individual_file_bytes,
+                )
+            storage.put(spec_key, spec_bytes, spec_content_type)
+            stored_keys.append(spec_key)
+            if source_bytes and source_key:
+                storage.put(source_key, source_bytes, source_content_type or "application/zip")
+                stored_keys.append(source_key)
+            scan = self.repo.enqueue_scan(
+                scan_id=scan_id,
+                project_name=project_name,
+                spec_filename=spec_filename,
+                source_filename=source_filename,
+                spec_hash=spec_hash,
+                source_hash=source_hash,
+                client_id=client_id,
+                spec_artifact_key=spec_key,
+                source_artifact_key=source_key,
+                spec_content_type=spec_content_type,
+                source_content_type=source_content_type,
+                max_active=settings.max_active_scans,
+                max_per_client=settings.max_concurrent_scans_per_client,
+            )
+            return scan.id
+        except BaseException:
+            for key in stored_keys:
+                try:
+                    storage.delete(key)
+                except Exception:
+                    logger.error("Failed to remove an unqueued scan artifact.", exc_info=True)
+            raise
+        finally:
+            cleanup_scan_workspace(scan_id)
 
     def create_and_submit_scan(
         self,

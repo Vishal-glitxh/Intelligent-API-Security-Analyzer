@@ -2,11 +2,21 @@ import io
 import re
 import zipfile
 
+import pytest
 from app.core.config import settings
+from app.db.models import ScanRateBucket
+from app.db.session import SessionLocal
 from app.main import app
 from fastapi.testclient import TestClient
 
 client = TestClient(app, headers={"X-API-Key": settings.api_access_token or ""})
+
+
+@pytest.fixture(autouse=True)
+def isolate_shared_rate_limit_state() -> None:
+    with SessionLocal() as db:
+        db.query(ScanRateBucket).delete()
+        db.commit()
 
 
 def test_scan_endpoints_require_api_key() -> None:
@@ -46,6 +56,12 @@ def create_sample_zip(filename: str = "app/main.py", content: str = SAMPLE_FASTA
     return buf.getvalue()
 
 
+def _run_one_queued_scan() -> None:
+    from app.services.scan_worker import process_one_claim
+
+    assert process_one_claim("api-test-worker") is True
+
+
 def test_scan_creation_and_completion_flow() -> None:
     spec_bytes = SAMPLE_SPEC_YAML.encode("utf-8")
     zip_bytes = create_sample_zip()
@@ -63,10 +79,13 @@ def test_scan_creation_and_completion_flow() -> None:
 
     data = response.json()
     assert "scan_id" in data
-    assert data["status"] in ("queued", "completed")
+    assert data["status"] == "queued"
     assert data["project_name"] == "API Test Suite Project"
 
     scan_id = data["scan_id"]
+
+    # Submission is durable and asynchronous; the worker consumes the persisted job.
+    _run_one_queued_scan()
 
     # Retrieve status endpoint
     status_resp = client.get(f"/api/v1/scans/{scan_id}")
@@ -369,6 +388,8 @@ def test_scan_creation_invalid_openapi() -> None:
     data = response.json()
     scan_id = data["scan_id"]
 
+    _run_one_queued_scan()
+
     # Verify status endpoint shows FAILED
     status_resp = client.get(f"/api/v1/scans/{scan_id}")
     assert status_resp.status_code == 200
@@ -410,6 +431,7 @@ def test_numeric_openapi_version_returns_sanitized_error_and_cleans_workspace() 
     # validation failure is reported on the resulting scan record.
     assert response.status_code == 202
     scan_id = response.json()["scan_id"]
+    _run_one_queued_scan()
     status_response = client.get(f"/api/v1/scans/{scan_id}")
     assert status_response.status_code == 200
 

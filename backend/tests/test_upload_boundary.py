@@ -61,9 +61,7 @@ def _multipart_body(
 def _mock_scan_creation() -> Iterator[Any]:
     scan_id = uuid4()
     with (
-        patch(
-            "app.api.v1.scans.ScanService.create_and_submit_scan", return_value=scan_id
-        ) as submit,
+        patch("app.api.v1.scans.ScanService.enqueue_scan", return_value=scan_id) as submit,
         patch(
             "app.api.v1.scans.ScanRepository.get_scan",
             return_value=SimpleNamespace(
@@ -215,7 +213,7 @@ def test_slow_scan_orchestration_does_not_block_same_event_loop() -> None:
         app.dependency_overrides[get_db] = lambda: object()
         try:
             with (
-                patch("app.api.v1.scans.ScanService.create_and_submit_scan", slow_scan),
+                patch("app.api.v1.scans.ScanService.enqueue_scan", slow_scan),
                 patch(
                     "app.api.v1.scans.ScanRepository.get_scan",
                     return_value=SimpleNamespace(
@@ -270,7 +268,7 @@ def test_cancelled_scan_request_keeps_admission_until_orchestration_finishes() -
         app.dependency_overrides[get_db] = lambda: object()
         try:
             with (
-                patch("app.api.v1.scans.ScanService.create_and_submit_scan", slow_scan),
+                patch("app.api.v1.scans.ScanService.enqueue_scan", slow_scan),
                 patch(
                     "app.api.v1.scans.ScanRepository.get_scan",
                     return_value=SimpleNamespace(

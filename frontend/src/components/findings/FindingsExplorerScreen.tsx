@@ -11,11 +11,10 @@ import {
   Send,
 } from 'lucide-react';
 import { api } from '../../services/api';
-import { Finding } from '../../types/findings';
+import { AssistantClaimCitation, Finding, ScanAssistantResponse } from '../../types/findings';
 import { mapCorrelatedFinding } from '../../utils/findings';
 import { SeverityBadge, CategoryBadge, LayerBadge } from '../common/Badge';
 import { redactSecrets } from '../../utils/redact';
-import { ScanAssistantResponse } from '../../types/findings';
 
 interface FindingsExplorerScreenProps {
   scanId: string;
@@ -102,6 +101,59 @@ export const FindingEvidenceAndRemediation: React.FC<{ finding: Finding }> = ({ 
     )}
   </>
 );
+
+export const AssistantResponseAttribution: React.FC<{
+  response: Pick<ScanAssistantResponse, 'policy_refusal' | 'claim_citations' | 'sources'>;
+}> = ({ response }) => {
+  const claims = response.claim_citations ?? [];
+  if (!response.policy_refusal && claims.length === 0) return null;
+
+  const sourceById = new Map(response.sources.map((source) => [source.id, source]));
+
+  return (
+    <div className="space-y-3">
+      {response.policy_refusal && (
+        <p
+          role="note"
+          aria-label="Assistant policy refusal"
+          className="rounded-lg border border-amber-800/60 bg-amber-950/20 px-3 py-2 text-xs leading-5 text-amber-200"
+        >
+          {response.policy_refusal}
+        </p>
+      )}
+      {claims.length > 0 && (
+        <section aria-label="Claim-level attribution" className="space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            Claim-level attribution
+          </p>
+          {claims.map((claim: AssistantClaimCitation) => (
+            <article key={claim.claim_id} className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
+              <p className="text-xs leading-5 text-slate-200">{claim.text}</p>
+              <p className="mt-1 text-[10px] uppercase tracking-wide text-slate-500">
+                {claim.origin === 'local_model' ? 'Local model' : 'Deterministic analysis'}
+                {' · '}{claim.kind.replaceAll('_', ' ')}
+              </p>
+              {claim.source_ids.length > 0 ? (
+                <ul className="mt-2 space-y-1">
+                  {claim.source_ids.map((sourceId) => {
+                    const source = sourceById.get(sourceId);
+                    return (
+                      <li key={`${claim.claim_id}-${sourceId}`} className="text-[10px] text-teal-200">
+                        Evidence: {source ? `${source.title} · ${source.citation}` : sourceId}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="mt-2 text-[10px] text-slate-500">No retrieved source cited.</p>
+              )}
+            </article>
+          ))}
+        </section>
+      )}
+    </div>
+  );
+};
 
 export const FindingsExplorerScreen: React.FC<FindingsExplorerScreenProps> = ({ scanId }) => {
   const [allFindings, setAllFindings] = useState<Finding[]>([]);
@@ -240,6 +292,7 @@ export const FindingsExplorerScreen: React.FC<FindingsExplorerScreenProps> = ({ 
         {assistantResult && (
           <div className="mt-4 space-y-3 border-t border-slate-800 pt-4">
             <p className="text-sm leading-6 text-slate-200">{assistantResult.answer}</p>
+            <AssistantResponseAttribution response={assistantResult} />
             {assistantResult.ai_used && assistantResult.ai_explanation && (
               <div className="rounded-lg border border-violet-900/60 bg-violet-950/20 p-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-300">

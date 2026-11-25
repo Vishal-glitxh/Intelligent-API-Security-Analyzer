@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey, String, Text
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -31,6 +31,7 @@ class Scan(Base):
     """Scan metadata entity tracking scan lifecycle, status, and versioning."""
 
     __tablename__ = "scans"
+    __table_args__ = (Index("ix_scans_expired_lease", "status", "lease_expires_at"),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     project_name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -44,6 +45,18 @@ class Scan(Base):
     rule_set_version: Mapped[str] = mapped_column(String(50), nullable=False, default="0.1.0")
     config_version: Mapped[str] = mapped_column(String(50), nullable=False, default="1.0.0")
     client_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    spec_artifact_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    source_artifact_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    spec_content_type: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="application/octet-stream"
+    )
+    source_content_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    lease_owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    lease_token: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    attempt_count: Mapped[int] = mapped_column(default=0, server_default="0", nullable=False)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -58,6 +71,39 @@ class Scan(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+
+
+class CoordinationLock(Base):
+    """Singleton rows used to serialize global admission decisions across replicas."""
+
+    __tablename__ = "coordination_locks"
+
+    lock_name: Mapped[str] = mapped_column(String(64), primary_key=True)
+
+
+class UploadReservation(Base):
+    """Shared expiring reservations for multipart upload admission."""
+
+    __tablename__ = "upload_reservations"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    client_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
+
+
+class ScanRateBucket(Base):
+    """Shared fixed-window scan-rate bucket keyed by trusted client identity."""
+
+    __tablename__ = "scan_rate_buckets"
+
+    bucket_key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    window_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    request_count: Mapped[int] = mapped_column(nullable=False)
 
 
 class ScanResult(Base):

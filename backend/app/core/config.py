@@ -41,9 +41,15 @@ class Settings(BaseSettings):
     max_concurrent_scans_per_client: int = 2
     max_concurrent_uploads: int = 4
     max_concurrent_uploads_per_client: int = 2
+    upload_reservation_ttl_seconds: int = 900
     upload_read_timeout_seconds: float = 120.0
     max_worker_processes: int = 2
     scan_timeout_seconds: float = 300.0
+    scan_job_max_attempts: int = 3
+    scan_worker_count: int = 1
+    scan_worker_poll_interval_seconds: float = 1.0
+    scan_lease_grace_seconds: float = 60.0
+    scan_workers_enabled: bool = True
     scan_rate_limit_requests: int = 20
     scan_rate_limit_window_seconds: int = 60
     worker_max_memory_bytes: int = 512 * 1024 * 1024
@@ -58,6 +64,15 @@ class Settings(BaseSettings):
     rag_index_max_chars: int = 1_000_000
     rag_chunk_chars: int = 1000
     rag_chunk_overlap_chars: int = 100
+    rag_max_ingest_files: int = 128
+    rag_max_ingest_file_bytes: int = 10 * 1024 * 1024
+    rag_approved_document_hashes: str = ""
+    artifact_storage_backend: str = "local"
+    artifact_storage_bucket: str = ""
+    artifact_storage_prefix: str = "iasa"
+    artifact_storage_endpoint_url: str = ""
+    artifact_storage_region: str = ""
+    artifact_storage_local_path: str = "scratch/scan-artifacts"
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -102,6 +117,24 @@ class Settings(BaseSettings):
                     "API_ACCESS_TOKEN must be at least 32 characters in production environments."
                 )
 
+            if self.artifact_storage_backend != "s3" or not self.artifact_storage_bucket.strip():
+                raise ValueError("Production requires S3-compatible shared scan artifact storage.")
+            if not self.scan_workers_enabled:
+                raise ValueError("SCAN_WORKERS_ENABLED must be enabled in production.")
+            if self.artifact_storage_endpoint_url:
+                storage_url = urlsplit(self.artifact_storage_endpoint_url)
+                if (
+                    storage_url.scheme != "https"
+                    or not storage_url.hostname
+                    or storage_url.username
+                    or storage_url.password
+                    or storage_url.query
+                    or storage_url.fragment
+                ):
+                    raise ValueError(
+                        "ARTIFACT_STORAGE_ENDPOINT_URL must be a credential-free HTTPS URL."
+                    )
+
         else:
             if not self.session_secret:
                 self.session_secret = _INSECURE_DEV_SECRET
@@ -122,14 +155,21 @@ class Settings(BaseSettings):
             "MAX_CONCURRENT_SCANS_PER_CLIENT": self.max_concurrent_scans_per_client,
             "MAX_CONCURRENT_UPLOADS": self.max_concurrent_uploads,
             "MAX_CONCURRENT_UPLOADS_PER_CLIENT": self.max_concurrent_uploads_per_client,
+            "UPLOAD_RESERVATION_TTL_SECONDS": self.upload_reservation_ttl_seconds,
             "UPLOAD_READ_TIMEOUT_SECONDS": self.upload_read_timeout_seconds,
             "MAX_WORKER_PROCESSES": self.max_worker_processes,
             "SCAN_TIMEOUT_SECONDS": self.scan_timeout_seconds,
+            "SCAN_JOB_MAX_ATTEMPTS": self.scan_job_max_attempts,
+            "SCAN_WORKER_COUNT": self.scan_worker_count,
+            "SCAN_WORKER_POLL_INTERVAL_SECONDS": self.scan_worker_poll_interval_seconds,
+            "SCAN_LEASE_GRACE_SECONDS": self.scan_lease_grace_seconds,
             "LOCAL_AI_TIMEOUT_SECONDS": self.local_ai_timeout_seconds,
             "LOCAL_AI_MAX_CONTEXT_CHARS": self.local_ai_max_context_chars,
             "RAG_INDEX_MAX_DOCUMENTS": self.rag_index_max_documents,
             "RAG_INDEX_MAX_CHARS": self.rag_index_max_chars,
             "RAG_CHUNK_CHARS": self.rag_chunk_chars,
+            "RAG_MAX_INGEST_FILES": self.rag_max_ingest_files,
+            "RAG_MAX_INGEST_FILE_BYTES": self.rag_max_ingest_file_bytes,
         }
         for name, value in positive_limits.items():
             if value <= 0:
@@ -143,6 +183,27 @@ class Settings(BaseSettings):
             raise ValueError("RAG_CHUNK_OVERLAP_CHARS must be less than RAG_CHUNK_CHARS.")
         if self.rag_chunk_chars > 1200:
             raise ValueError("RAG_CHUNK_CHARS cannot exceed the local embedding request limit.")
+        if self.artifact_storage_backend not in {"local", "s3"}:
+            raise ValueError("ARTIFACT_STORAGE_BACKEND must be local or s3.")
+        if self.scan_worker_count > 32:
+            raise ValueError("SCAN_WORKER_COUNT cannot exceed 32 per process.")
+        if self.scan_workers_enabled and self.scan_worker_count > self.max_worker_processes:
+            raise ValueError(
+                "SCAN_WORKER_COUNT cannot exceed MAX_WORKER_PROCESSES when workers are enabled."
+            )
+        if self.upload_reservation_ttl_seconds <= self.upload_read_timeout_seconds:
+            raise ValueError("UPLOAD_RESERVATION_TTL_SECONDS must exceed the upload read timeout.")
+        approved_hashes = [
+            item.strip() for item in self.rag_approved_document_hashes.split(",") if item.strip()
+        ]
+        if any(
+            len(item) != 64 or any(character not in "0123456789abcdefABCDEF" for character in item)
+            for item in approved_hashes
+        ):
+            raise ValueError(
+                "RAG_APPROVED_DOCUMENT_HASHES must contain comma-separated SHA-256 values."
+            )
+        self.rag_approved_document_hashes = ",".join(item.lower() for item in approved_hashes)
         if not self.rag_index_path.strip():
             raise ValueError("RAG_INDEX_PATH must not be empty.")
 

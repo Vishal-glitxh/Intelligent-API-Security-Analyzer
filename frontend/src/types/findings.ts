@@ -78,6 +78,20 @@ export interface ScanFindingsResponse {
   correlated_findings: (CorrelatedFinding | Finding)[];
 }
 
+export interface AssistantClaimCitation {
+  claim_id: string;
+  text: string;
+  source_ids: string[];
+  origin: 'local_model' | 'deterministic_fallback';
+  kind:
+    | 'scan_observation'
+    | 'general_guidance'
+    | 'qualification'
+    | 'recommendation'
+    | 'policy_refusal'
+    | 'abstention';
+}
+
 export interface ScanAssistantResponse {
   scan_id: string;
   answer: string;
@@ -105,9 +119,13 @@ export interface ScanAssistantResponse {
   model_name?: string | null;
   ai_used: boolean;
   ai_explanation?: string | null;
+  /** Deterministic refusal text, returned separately from the scan answer. */
+  policy_refusal?: string | null;
   recommendations: string[];
   /** IDs selected by the model and accepted against this response's retrieved sources. */
   cited_source_ids: string[];
+  /** Claim-level attribution; optional for compatibility with older API responses. */
+  claim_citations?: AssistantClaimCitation[];
 }
 
 export interface LocalAIStatus {

@@ -7,7 +7,12 @@ import json
 from pathlib import Path
 from typing import Any
 
-from app.services.rag_index import RagIndexError, inspect_index, rebuild_index
+from app.services.rag_index import (
+    RagIndexError,
+    build_ingested_index,
+    inspect_index,
+    rebuild_index,
+)
 
 
 def main() -> None:
@@ -28,6 +33,21 @@ def main() -> None:
     )
     inspect = commands.add_parser("inspect", help="print safe metadata for the current index")
     inspect.add_argument("--path", type=Path, help="override RAG_INDEX_PATH")
+    ingest = commands.add_parser(
+        "ingest",
+        help="extract local reference files into a new provenance-rich candidate index",
+    )
+    ingest.add_argument("--directory", type=Path, required=True, help="local document directory")
+    ingest.add_argument(
+        "--output", type=Path, required=True, help="new index path; existing paths are refused"
+    )
+    ingest.add_argument("--lexical-only", action="store_true", help="skip Ollama embeddings")
+    ingest.add_argument(
+        "--category",
+        choices=("public_security_documentation", "internal_iasa_knowledge"),
+        default="public_security_documentation",
+        help="classify this corpus; model use still requires hash approval",
+    )
     args = parser.parse_args()
     try:
         if args.command == "rebuild":
@@ -36,6 +56,13 @@ def main() -> None:
                 manifest_path=args.manifest,
                 include_bundled=not args.only_manifest,
                 lexical_only=args.lexical_only,
+            )
+        elif args.command == "ingest":
+            result = build_ingested_index(
+                args.directory,
+                output_path=args.output,
+                lexical_only=args.lexical_only,
+                source_category=args.category,
             )
         else:
             result = inspect_index(args.path)

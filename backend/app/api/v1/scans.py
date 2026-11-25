@@ -20,10 +20,12 @@ from app.schemas.scan import (
     ScanResponse,
     ScanResultsResponse,
 )
+from app.services.assistant_policy import POLICY_REFUSAL_TEXT, is_sensitive_disclosure_request
 from app.services.local_ai import generate_local_explanation, get_local_ai_status
 from app.services.rag_assistant import answer_scan_question
 from app.services.report import ReportService
 from app.services.scan_service import ScanService
+from app.services.upload_admission import AdmissionUnavailable
 from app.services.upload_admission import upload_admission as upload_admission
 from fastapi import (
     APIRouter,
@@ -34,6 +36,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import HTMLResponse, JSONResponse, Response
+from pydantic import ValidationError
 from python_multipart.exceptions import MultipartParseError
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
@@ -66,7 +69,7 @@ async def _read_upload_with_limit(upload: UploadFile, max_bytes: int, label: str
     return bytes(content)
 
 
-async def _run_scan_orchestration(
+async def _run_scan_enqueue(
     service: ScanService,
     *,
     project_name: str,
@@ -75,17 +78,21 @@ async def _run_scan_orchestration(
     source_filename: str,
     source_bytes: bytes,
     client_id: str,
+    spec_content_type: str,
+    source_content_type: str | None,
 ) -> uuid.UUID:
-    """Keep a scan thread and its admission reservation alive through request cancellation."""
+    """Keep enqueue work and its admission reservation alive through request cancellation."""
     operation = asyncio.create_task(
         run_in_threadpool(
-            service.create_and_submit_scan,
+            service.enqueue_scan,
             project_name=project_name,
             spec_filename=spec_filename,
             spec_bytes=spec_bytes,
             source_filename=source_filename,
             source_bytes=source_bytes,
             client_id=client_id,
+            spec_content_type=spec_content_type,
+            source_content_type=source_content_type,
         )
     )
     cancellation_requested = False
@@ -169,7 +176,13 @@ async def create_scan(
         except ValueError:
             pass
 
-    reservation = upload_admission.try_reserve(client.client_id)
+    try:
+        reservation = await run_in_threadpool(upload_admission.try_reserve, client.client_id)
+    except AdmissionUnavailable as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Scan admission is temporarily unavailable.",
+        ) from exc
     if reservation is None:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -195,9 +208,11 @@ async def create_scan(
                     else b""
                 )
                 spec_filename = openapi_file.filename or "openapi.yaml"
+                spec_content_type = openapi_file.content_type or "application/octet-stream"
                 source_filename = (
                     (source_archive.filename or "source.zip") if source_archive else "Not provided"
                 )
+                source_content_type = source_archive.content_type if source_archive else None
         except MultipartParseError as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -208,7 +223,7 @@ async def create_scan(
         try:
             # A cancelled request must not release admission while its synchronous
             # worker thread can still persist scan state or use the workspace.
-            scan_id = await _run_scan_orchestration(
+            scan_id = await _run_scan_enqueue(
                 service,
                 project_name=project_name,
                 spec_filename=spec_filename,
@@ -216,6 +231,8 @@ async def create_scan(
                 source_filename=source_filename,
                 source_bytes=source_bytes,
                 client_id=client.client_id,
+                spec_content_type=spec_content_type,
+                source_content_type=source_content_type,
             )
         except ValueError as exc:
             msg = str(exc)
@@ -244,7 +261,7 @@ async def create_scan(
             created_at=scan.created_at,
         )
     finally:
-        reservation.release()
+        await asyncio.shield(run_in_threadpool(reservation.release))
 
 
 @router.get("", response_model=list[ScanResponse])
@@ -405,21 +422,43 @@ def ask_scan_assistant(
         matched_endpoints=result.matched_endpoints,
         limit=request_data.limit,
         local_ai_status=ai_status,
+        source_types=request_data.source_types,
     )
-    explanation = generate_local_explanation(
-        request_data.question,
-        response["sources"],
-        status_data=ai_status,
+    sensitive_request = is_sensitive_disclosure_request(request_data.question)
+    policy_refusal = POLICY_REFUSAL_TEXT if sensitive_request else None
+    if response.get("policy_refusal") != policy_refusal:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Assistant policy validation failed.",
+        )
+    explanation = (
+        None
+        if sensitive_request
+        else generate_local_explanation(
+            request_data.question,
+            response["sources"],
+            status_data=ai_status,
+        )
     )
-    retrieved_source_ids = {str(source["id"]) for source in response["sources"]}
-    cited_source_ids = (
-        [
-            source_id
-            for source_id in explanation.cited_source_ids
-            if source_id in retrieved_source_ids
-        ]
-        if explanation
-        else []
+    fallback_claim_citations = response.get("claim_citations")
+    model_claim_citations = explanation.claim_citations if explanation else []
+    if (
+        not isinstance(fallback_claim_citations, list)
+        or not fallback_claim_citations
+        or any(
+            not isinstance(claim, dict) or claim.get("origin") != "deterministic_fallback"
+            for claim in fallback_claim_citations
+        )
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Assistant citation integrity validation failed.",
+        )
+    claim_citations = fallback_claim_citations + model_claim_citations
+    cited_source_ids = list(
+        dict.fromkeys(
+            source_id for claim in model_claim_citations for source_id in claim["source_ids"]
+        )
     )
     response.update(
         {
@@ -427,8 +466,10 @@ def ask_scan_assistant(
             "model_name": ai_status["model_name"],
             "ai_used": explanation is not None,
             "ai_explanation": explanation.explanation if explanation else None,
+            "policy_refusal": policy_refusal,
             "recommendations": explanation.recommendations if explanation else [],
             "cited_source_ids": cited_source_ids,
+            "claim_citations": claim_citations,
             "notice": (
                 "Local model generated this explanation from retrieved, redacted evidence."
                 if explanation
@@ -436,7 +477,13 @@ def ask_scan_assistant(
             ),
         }
     )
-    return ScanAssistantResponse(scan_id=scan.id, **response)
+    try:
+        return ScanAssistantResponse(scan_id=scan.id, **response)
+    except (ValidationError, TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Assistant citation integrity validation failed.",
+        ) from exc
 
 
 @router.get("/{scan_id}/report", response_model=None)

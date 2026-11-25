@@ -67,9 +67,9 @@ uv run uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
 The backend exposes separate process liveness and dependency readiness checks:
 `http://localhost:8000/health/live` (also available at the compatibility path `/health`)
 reports that the API process is running. `http://localhost:8000/health/ready` returns success
-only after startup scan recovery succeeds and the database answers `SELECT 1`; Docker Compose
-uses this readiness endpoint for the API health check. If startup recovery fails, the process
-remains live for diagnosis but stays unready until restarted after the underlying problem is fixed.
+only when PostgreSQL is reachable and the expected Alembic revision is installed; Docker Compose
+uses this readiness endpoint for the API health check. Queued and leased jobs recover through
+database-backed worker claims rather than being failed during API startup.
 
 ---
 
@@ -262,6 +262,23 @@ uv run python -m app.services.rag_index_cli rebuild --lexical-only
 
 An optional bounded JSON manifest can add reviewed documents. Each document must provide `document_id`, `title`, `source_type`, and `content`; `source_location`, `source_url`, and `license` are optional provenance fields. Use `--manifest sources.json --only-manifest` to build only those documents. IDs must be stable and unique; duplicate identical entries are deduplicated, while conflicting IDs reject the rebuild. Inputs are size bounded, normalized for common secrets, split into stable chunks, and validated before an atomic replacement. The index stores the Ollama model name and installed-model digest, vector dimensions, and chunking metadata, uses restrictive local file permissions, and is marked stale when the embedding model version or chunking configuration changes. Failed builds preserve the previous index.
 
+### Local document ingestion (separately versioned candidate)
+
+The explicit `ingest` command extracts PDF, DOCX, TXT, Markdown, and HTML files from a local directory. It does not fetch URLs, access the network, or run during API startup. The default category is public security documentation; `--category internal_iasa_knowledge` explicitly labels internal reference material. It skips hidden and sensitive configuration/credential paths, rejects symbolic links and non-regular files, enforces per-file, total-byte, document-count, page, and corpus-text bounds, and deduplicates identical source files by SHA-256. PDF text extraction uses the pinned `pypdf` dependency; DOCX reads only the main document XML without extracting archive paths. Text and HTML parsing do not execute scripts or embedded content.
+
+Every ingested chunk carries the relative source identity, original filename, raw-file SHA-256, normalized-document SHA-256, chunk SHA-256, character offsets, and page/section where available. The v2 index stores the normalized source text needed to verify that chunk offsets and hashes are consistent. The command requires a **new explicit output path** and refuses the active index path or any existing output, so the historical `rag-index-v1.json` is not replaced. Build an unembedded candidate with:
+
+```bash
+uv run python -m app.services.rag_index_cli ingest \
+  --directory ./approved-reference-documents \
+  --output ./scratch/rag-index-v2-candidate.json \
+  --lexical-only
+```
+
+Omit `--lexical-only` to request embeddings from the configured local Ollama embedding model. Ollama handles device selection; the application does not download or initialize BAAI models. If Ollama is unavailable, deterministic CPU hashed vectors and BM25 remain the retrieval fallback; these are lexical-support fallbacks, not equivalent semantic embeddings. To activate the candidate, configure `RAG_INDEX_PATH` explicitly to that file. Ingested public and internal documents are **not eligible for model generation by default**. A trusted operator must review the content and configure the exact normalized-document SHA-256 values in `RAG_APPROVED_DOCUMENT_HASHES`; the assistant then permits only exact retrieved excerpts from those approved hashes. The editable index alone cannot approve material. Do not approve documents containing untrusted instructions or content that should not be sent to the local model.
+
+The existing locally bundled OWASP guidance remains application-controlled and model-eligible as before. Scan findings and endpoint/source evidence remain separate dynamic sources and are never merged into external-document trust. Uploading references is an operator CLI action; no new public API ingestion endpoint or persistent user-document store is introduced.
+
 `hybrid-rag-retrieval-v2` is a separate 17-query protocol with manually reviewed query-specific relevant source IDs, per-query outcomes, false-positive lists, and category metrics. The recorded lexical/hash fallback result was Recall@5 0.941 and macro Precision@5 0.188; the live semantic RRF baseline reproduced those aggregate values, with 17/17 queries returning at least one out-of-label source. A separate `hybrid-rag-precision-experiment-v1` compared component and hybrid rankings without changing the query labels. Its provisional live-semantic candidate applies a 0.50 cosine floor only when the installed embedding model and persistent index are compatible: on this set it retained Recall@5 0.941, returned 61 rather than 85 sources, reduced false-positive IDs from 69 to 45, and abstained on three of four zero-relevance controls. Fixed-k macro Precision@5 remained 0.188 because its denominator stays five; precision among returned IDs increased from 0.188 to 0.262. The adversarial control still retrieved five sources, and the single missed relevant source remains. This small, model/index-specific result is a limited noise reduction, not a broad quality claim. Full per-query ranks, component scores, configurations, and hashes are in `evaluation/rag/experiments/precision-v1/RESULTS.md`; historical scanner benchmarks remain separate and unchanged.
 
 Retrieval relevance, citation validity, and answer groundedness are distinct. The v2 protocol reports retrieved source-ID validity; groundedness remains unmeasured unless a reviewer supplies an answer-hash-bound human review. Citation presence alone is not proof of support.
@@ -345,11 +362,11 @@ uv run evaluate --dynamic --output-dir evaluation/runs
 
 ## Production Deployment Checklist
 
-The included Docker Compose setup is for local development only. It uses development configuration and is not a production deployment template. Production deployments must set `ENVIRONMENT=production` and secure credentials explicitly; configuration validation rejects development bypasses, built-in tokens, fallback secrets, and the default database URL. This project currently supports one API process and one deployment replica: upload admission and startup recovery use process-local coordination, so multi-worker and multi-replica deployments are not supported or verified.
+The included Docker Compose setup is for local development only. It uses development configuration and is not a production deployment template. Production deployments must set `ENVIRONMENT=production` and secure credentials explicitly; configuration validation rejects development bypasses, built-in tokens, fallback secrets, the default database URL, and local-only artifact storage. A provider-neutral multi-replica reference architecture is documented in [the deployment guide](docs/deployment/PROVIDER_NEUTRAL_MULTI_REPLICA.md); it requires PostgreSQL coordination, S3-compatible shared artifact storage, migrations before rollout, and the deployment controls described there. Production readiness still requires provider-specific deployment, security, load, failure-recovery, and operational verification.
 
 Before deploying this application to a production or staging environment, ensure the following hardening controls are implemented:
 
-1. **Supported deployment topology**: Run one API process on one replica. Do not enable multiple server workers or replicas until upload admission and startup recovery use shared coordination and have been verified for that topology.
+1. **Supported deployment topology**: Use the provider-neutral architecture and deployment gates in `docs/deployment/PROVIDER_NEUTRAL_MULTI_REPLICA.md`. The reference describes the intended topology; it does not claim a deployment has been validated or approved for production.
 
 2. **Private Networking & Database Isolation**:
    - PostgreSQL must never be published to public network interfaces (`0.0.0.0`). Bind exclusively to private container networks or VPC subnets.
